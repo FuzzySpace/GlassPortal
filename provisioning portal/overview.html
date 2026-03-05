@@ -1,0 +1,46 @@
+<section class="page">
+  <header class="page-header">
+    <div class="page-header__titles">
+      <h1>Overview</h1>
+      <p class="muted">Execution health, failures, and recent activity.</p>
+    </div>
+    <div class="page-header__actions">
+      <a class="btn btn--primary" href="/automations/new">New automation</a>
+      <button class="btn" type="button" data-action="open-filters">Filters</button>
+    </div>
+  </header>
+
+  <section class="kpi-grid" aria-label="Key metrics">
+    <article class="kpi-card"><h2>Active</h2><p data-kpi="active">—</p></article>
+    <article class="kpi-card"><h2>Runs today</h2><p data-kpi="runsToday">—</p></article>
+    <article class="kpi-card"><h2>Fail rate</h2><p data-kpi="failRate">—</p></article>
+    <article class="kpi-card"><h2>Avg runtime</h2><p data-kpi="avgRuntime">—</p></article>
+  </section>
+
+  <section class="grid-2">
+    <section class="panel">
+      <header class="panel__header">
+        <h2>Recent runs</h2>
+        <a class="link" href="/runs">View all</a>
+      </header>
+      <div class="panel__body">
+        <table class="table" data-table="recentRuns">
+          <thead>
+            <tr><th>Time</th><th>Automation</th><th>Status</th><th>Duration</th></tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="panel">
+      <header class="panel__header">
+        <h2>Needs attention</h2>
+        <button class="btn btn--ghost" type="button" data-action="ack-all">Acknowledge</button>
+      </header>
+      <div class="panel__body">
+        <ul class="list" data-list="alerts"></ul>
+      </div>
+    </section>
+  </section>
+</section>
