@@ -48,7 +48,7 @@ $runsStmt = $pdo->prepare("
            a.name AS automation_name
     FROM automation_runs ar
     JOIN automations a ON a.id = ar.automation_id
-    WHERE JSON_CONTAINS(ar.meta, JSON_QUOTE(?), '$.targets')
+    WHERE JSON_SEARCH(ar.meta, 'one', ?, NULL, '$.targets') IS NOT NULL
        OR ar.meta->>'$.node_id' = ?
     ORDER BY ar.created_at DESC
     LIMIT 10

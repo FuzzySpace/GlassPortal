@@ -317,7 +317,7 @@ function status_badge_class(string $s): string {
                         </td>
                         <td>
                           <?php if ($a['rack_name']): ?>
-                            <a class="link" href="/rack.php?id=<?= htmlspecialchars((string)$a['rack_name']) ?>">
+                            <a class="link" href="/rack.php?id=<?= (int)$a['rack_id'] ?>">
                               <?= htmlspecialchars($a['rack_name']) ?>
                             </a>
                             <?php if ($a['rack_unit_start']): ?>
@@ -331,7 +331,7 @@ function status_badge_class(string $s): string {
                         </td>
                         <td>
                           <?php if ($a['customer_name']): ?>
-                            <a class="link" href="/customer.php?id=<?= (int)$a['id'] ?>">
+                            <a class="link" href="/customer.php?id=<?= (int)$a['cust_id'] ?>">
                               <?= htmlspecialchars($a['customer_name']) ?>
                             </a>
                             <?php if ($a['customer_service_level']): ?>

@@ -111,7 +111,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     ]);
                     $success = 'Server updated successfully.';
                     // Reload node
-                    $node = $pdo->prepare("SELECT * FROM nodes WHERE id = ?")->execute([$nodeId]) ? $pdo->query("SELECT * FROM nodes WHERE id=$nodeId")->fetch() : $node;
+                    $reloadStmt = $pdo->prepare("SELECT * FROM nodes WHERE id = ?");
+                    $reloadStmt->execute([$nodeId]);
+                    $node = $reloadStmt->fetch() ?: $node;
                 } else {
                     $stmt = $pdo->prepare("
                         INSERT INTO nodes

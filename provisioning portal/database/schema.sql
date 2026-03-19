@@ -294,6 +294,38 @@ INSERT INTO provisioning_tasks (category, step_order, name, description, is_requ
 ('monitoring', 72, 'Provisioning sign-off',            'Final operator sign-off. Mark server as production-ready in portal.', 1);
 
 -- ============================================================
+--  Authentication — Login audit & Remember-me tokens
+-- ============================================================
+
+CREATE TABLE auth_logins (
+    id              INT AUTO_INCREMENT PRIMARY KEY,
+    user_id         INT NULL,
+    email_attempted VARCHAR(150) NULL,
+    ip              VARCHAR(45) NULL,
+    user_agent      TEXT NULL,
+    success         TINYINT DEFAULT 0,
+    fail_reason     VARCHAR(100) NULL,
+    created_at      DATETIME DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_auth_logins_ip      (ip),
+    INDEX idx_auth_logins_user_id (user_id)
+);
+
+CREATE TABLE auth_remember_tokens (
+    id                  INT AUTO_INCREMENT PRIMARY KEY,
+    user_id             INT NOT NULL,
+    selector            VARCHAR(32) NOT NULL UNIQUE,
+    validator_hash      VARCHAR(255) NOT NULL,
+    expires_at          DATETIME NOT NULL,
+    ip_created          VARCHAR(45) NULL,
+    user_agent_created  TEXT NULL,
+    revoked_at          DATETIME NULL,
+    last_used_at        DATETIME NULL,
+    created_at          DATETIME DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_remember_user (user_id),
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+-- ============================================================
 --  Foreign keys (applied after all tables exist)
 -- ============================================================
 
@@ -301,3 +333,23 @@ ALTER TABLE nodes
     ADD CONSTRAINT fk_nodes_datacenter FOREIGN KEY (datacenter_id) REFERENCES datacenters(id) ON DELETE SET NULL,
     ADD CONSTRAINT fk_nodes_rack       FOREIGN KEY (rack_id)       REFERENCES racks(id)        ON DELETE SET NULL,
     ADD CONSTRAINT fk_nodes_customer   FOREIGN KEY (customer_id)   REFERENCES customers(id)    ON DELETE SET NULL;
+
+-- ============================================================
+--  Missing columns (added after initial table creation)
+-- ============================================================
+
+-- automation_runs: execution tracking columns
+ALTER TABLE automation_runs
+    ADD COLUMN initiated_via       VARCHAR(30) NULL    AFTER duration_ms,   -- web|api|schedule|worker
+    ADD COLUMN initiated_by_user_id INT NULL            AFTER initiated_via,
+    ADD COLUMN error_code          VARCHAR(50) NULL    AFTER initiated_by_user_id,
+    ADD COLUMN error_message       TEXT NULL            AFTER error_code;
+
+-- automations: schedule support
+ALTER TABLE automations
+    ADD COLUMN schedule_cron VARCHAR(100) NULL AFTER trigger_type;
+
+-- audit_logs: request context
+ALTER TABLE audit_logs
+    ADD COLUMN ip         VARCHAR(45) NULL AFTER meta,
+    ADD COLUMN user_agent TEXT NULL        AFTER ip;
