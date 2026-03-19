@@ -81,10 +81,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $stmt->execute([$newStatus, $notes ?: null, $userId ?: null, $stepId, $provId]);
 
             // Check if all required steps are done → auto-complete the session
-            $pending = (int)$pdo->prepare("
-                SELECT COUNT(*) FROM provisioning_step_log
-                WHERE provisioning_id=? AND status='pending'
-            ")->execute([$provId]) ? $pdo->query("SELECT COUNT(*) FROM provisioning_step_log WHERE provisioning_id=$provId AND status='pending'")->fetchColumn() : 1;
+            $pendingStmt = $pdo->prepare("SELECT COUNT(*) FROM provisioning_step_log WHERE provisioning_id=? AND status='pending'");
+            $pendingStmt->execute([$provId]);
+            $pending = (int)$pendingStmt->fetchColumn();
 
             header("Location: /provision.php?node=$nodeId&prov=$provId&updated=1");
             exit;
