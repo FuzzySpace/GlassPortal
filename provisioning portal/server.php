@@ -120,6 +120,8 @@ $statusCls = status_badge_class((string)($server['status'] ?? 'unknown'));
             <div class="page-header__actions">
               <?php if (in_array($role, ['owner','admin','operator'], true)): ?>
                 <a class="btn btn--primary" href="/automations.php?node=<?= (int)$id ?>">Run Automation</a>
+                <a class="btn" href="/provision.php?node=<?= (int)$id ?>">Provisioning Checklist</a>
+                <a class="btn" href="/node_edit.php?id=<?= (int)$id ?>">Edit Server</a>
               <?php endif; ?>
               <?php if ($server['rack_name']): ?>
                 <a class="btn" href="/rack.php?id=<?= (int)$server['r_id'] ?>">View in Rack</a>

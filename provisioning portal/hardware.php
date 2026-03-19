@@ -142,8 +142,9 @@ function status_badge_class(string $s): string {
               <p class="muted">Full asset register — data centers, racks, servers, and customer assignments.</p>
             </div>
             <div class="page-header__actions">
+              <a class="btn btn--primary" href="/node_edit.php">+ Add Server</a>
               <?php if (in_array($role, ['owner','admin'], true)): ?>
-                <a class="btn btn--primary" href="/datacenters.php">Manage DCs</a>
+                <a class="btn" href="/datacenters.php">Manage DCs</a>
               <?php endif; ?>
               <a class="btn" href="/rack.php">Rack View</a>
             </div>

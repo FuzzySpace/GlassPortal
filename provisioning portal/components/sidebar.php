@@ -70,7 +70,13 @@ function can(array $roles, string $role): bool {
     <li>
       <a class="nav-link<?= nav_active('/automations.php', $path) ?>" href="/automations.php">
         <svg class="nav-icon" viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M10 3v4M10 13v4M3 10h4m6 0h4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" opacity=".7"/><circle cx="10" cy="10" r="2.5" fill="currentColor"/></svg>
-        Automations
+        Run Automation
+      </a>
+    </li>
+    <li>
+      <a class="nav-link<?= nav_active('/scripts.php', $path) ?>" href="/scripts.php">
+        <svg class="nav-icon" viewBox="0 0 20 20" fill="none" aria-hidden="true"><rect x="3" y="3" width="14" height="14" rx="2" stroke="currentColor" stroke-width="1.5" opacity=".8"/><path d="M7 7h6M7 10h4M7 13h5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" opacity=".6"/></svg>
+        Script Library
       </a>
     </li>
     <li>
