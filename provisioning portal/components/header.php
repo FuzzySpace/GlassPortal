@@ -5,9 +5,13 @@ $u = current_user();
 ?>
 <header class="topbar" role="banner">
   <div class="topbar__left">
-    <a class="brand" href="/dashboard.php" aria-label="Automation Portal Home">
-      <span class="brand__mark" aria-hidden="true"></span>
-      <span class="brand__name">Provisioning Portal</span>
+    <a class="brand" href="/dashboard.php" aria-label="Glasshouse Portal Home">
+      <img class="brand__logo"
+           src="/assets/images/glasshouse-logo.svg"
+           alt="Glasshouse"
+           width="32" height="37"
+           aria-hidden="true" />
+      <span class="brand__name">Glasshouse Portal</span>
     </a>
     <span class="env-badge" data-env="internal">INTERNAL</span>
   </div>

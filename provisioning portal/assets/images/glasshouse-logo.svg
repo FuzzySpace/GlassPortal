@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 578" fill="white">
+  <!--
+    Glasshouse GH Hexagon Logo
+    Pointy-top regular hexagon, double-border + GH monogram
+    All paths filled white; use CSS filter for colour/glow
+  -->
+
+  <!-- ── Hexagon double-border (even-odd → inner hex punched out) ── -->
+  <path fill-rule="evenodd" d="
+    M250,22  L456,138 L456,370 L250,486 L44,370  L44,138  Z
+    M250,68  L414,163 L414,347 L250,442 L86,347  L86,163  Z
+  "/>
+
+  <!--
+    ── GH monogram ──
+    Coordinate space: inner hex occupies ≈ x86–414, y68–442
+    Working area: x100–400, y88–422   (320 wide × 334 tall)
+    Bar / stroke thickness: 52 units
+
+    G  = left vertical + top bar + bottom bar + mid crossbar stub
+    H  = left vertical (shared w/ G opening) + right vertical + crossbar
+    The G's right-side opening shares the H's left vertical column.
+  -->
+
+  <!-- G — left vertical pillar -->
+  <rect x="100" y="88"  width="52" height="334"/>
+
+  <!-- G — top horizontal beam -->
+  <rect x="100" y="88"  width="200" height="52"/>
+
+  <!-- G — bottom horizontal beam -->
+  <rect x="100" y="370" width="200" height="52"/>
+
+  <!-- G — mid crossbar stub (right side only, creates the G's shelf) -->
+  <rect x="248" y="228" width="52"  height="52"/>
+
+  <!-- H — left vertical pillar (fills G's open right side) -->
+  <rect x="248" y="88"  width="52" height="334"/>
+
+  <!-- H — right vertical pillar -->
+  <rect x="348" y="88"  width="52" height="334"/>
+
+  <!-- H — crossbar (joins both H verticals; G shelf aligns here) -->
+  <rect x="248" y="228" width="152" height="52"/>
+</svg>

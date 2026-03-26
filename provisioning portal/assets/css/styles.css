@@ -4,23 +4,31 @@
    ========================= */
 
 :root{
-  --bg0: #07090f;
-  --bg1: #0b1020;
-  --card: rgba(16, 22, 42, 0.78);
-  --card-border: rgba(255,255,255,0.08);
+  --bg0: #070809;
+  --bg1: #0f1014;
+  --card: rgba(18, 18, 22, 0.80);
+  --card-border: rgba(255,255,255,0.07);
   --text: rgba(255,255,255,0.92);
-  --muted: rgba(255,255,255,0.62);
-  --muted2: rgba(255,255,255,0.42);
-  --focus: rgba(120, 180, 255, 0.45);
-  --shadow: 0 22px 70px rgba(0,0,0,0.55);
+  --muted: rgba(255,255,255,0.60);
+  --muted2: rgba(255,255,255,0.40);
+  --focus: rgba(249,115,22,0.30);
+  --shadow: 0 22px 70px rgba(0,0,0,0.65);
   --radius: 18px;
 
-  /* “Molten glass” accent without screaming neon */
-  --accent: #6fb6ff;
-  --accent2: #8b5cf6;
-  --danger: #ff5a7a;
-  --warn: #fbbf24;
-  --ok: #34d399;
+  /* Glasshouse brand palette — ember orange on near-black */
+  --accent:  #f97316;   /* primary orange */
+  --accent2: #fb923c;   /* lighter orange */
+  --accent3: #ff6b00;   /* deep glow orange */
+  --danger:  #ff5a7a;
+  --warn:    #fbbf24;
+  --ok:      #34d399;
+
+  /* Logo glow — layered drop-shadow for the orange halo */
+  --logo-glow:
+    drop-shadow(0 0  6px rgba(249,115,22,0.90))
+    drop-shadow(0 0 18px rgba(249,115,22,0.55))
+    drop-shadow(0 0 40px rgba(249,115,22,0.28))
+    drop-shadow(0 0 70px rgba(255,107,0,0.14));
 }
 
 /* baseline */
@@ -31,9 +39,9 @@ html, body{
 body{
   margin: 0;
   color: var(--text);
-  background: radial-gradient(1200px 900px at 18% 18%, rgba(111,182,255,0.14), rgba(0,0,0,0) 55%),
-              radial-gradient(900px 700px at 85% 20%, rgba(139,92,246,0.12), rgba(0,0,0,0) 55%),
-              radial-gradient(900px 700px at 40% 88%, rgba(52,211,153,0.08), rgba(0,0,0,0) 60%),
+  background: radial-gradient(1100px 800px at 15% 10%, rgba(249,115,22,0.09), rgba(0,0,0,0) 55%),
+              radial-gradient(800px 600px at 88% 15%, rgba(255,107,0,0.07),  rgba(0,0,0,0) 55%),
+              radial-gradient(700px 600px at 50% 95%, rgba(251,146,60,0.05), rgba(0,0,0,0) 60%),
               linear-gradient(180deg, var(--bg0), var(--bg1));
   font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji";
   -webkit-font-smoothing: antialiased;
@@ -77,7 +85,7 @@ body{
   content:"";
   display:block;
   height: 4px;
-  background: linear-gradient(90deg, var(--accent), var(--accent2));
+  background: linear-gradient(90deg, var(--accent3), var(--accent), var(--accent2));
 }
 
 /* inner spacing */
@@ -142,7 +150,7 @@ body{
 .auth-form input::placeholder{ color: rgba(255,255,255,0.35); }
 
 .auth-form input:focus{
-  border-color: rgba(111,182,255,0.55);
+  border-color: rgba(249,115,22,0.55);
   box-shadow: 0 0 0 4px var(--focus);
 }
 
@@ -184,13 +192,14 @@ body{
 .btn:active{ transform: translateY(0); }
 
 .btn--primary{
-  border: 1px solid rgba(111,182,255,0.35);
-  background: linear-gradient(180deg, rgba(111,182,255,0.24), rgba(139,92,246,0.16));
-  box-shadow: 0 10px 26px rgba(111,182,255,0.12);
+  border: 1px solid rgba(249,115,22,0.40);
+  background: linear-gradient(180deg, rgba(249,115,22,0.28), rgba(255,107,0,0.16));
+  box-shadow: 0 10px 26px rgba(249,115,22,0.14);
 }
 
 .btn--primary:hover{
-  box-shadow: 0 12px 34px rgba(111,182,255,0.18);
+  background: linear-gradient(180deg, rgba(249,115,22,0.38), rgba(255,107,0,0.24));
+  box-shadow: 0 12px 34px rgba(249,115,22,0.24);
 }
 
 .btn--block{ width: 100%; }
@@ -299,16 +308,16 @@ input, button { font: inherit; }
    (we’ll set this via a class in PHP: class="nav-link is-active")
 */
 .nav-link.is-active{
-  color: rgba(255,255,255,0.94);
-  background: linear-gradient(180deg, rgba(111,182,255,0.16), rgba(139,92,246,0.10));
-  border-color: rgba(111,182,255,0.22);
-  box-shadow: 0 10px 28px rgba(111,182,255,0.10);
+  color: rgba(255,255,255,0.96);
+  background: linear-gradient(180deg, rgba(249,115,22,0.18), rgba(255,107,0,0.10));
+  border-color: rgba(249,115,22,0.28);
+  box-shadow: 0 6px 20px rgba(249,115,22,0.12);
 }
 
 /* active icon tint */
 .nav-link.is-active::before{
-  background: linear-gradient(180deg, rgba(111,182,255,0.30), rgba(139,92,246,0.22));
-  border-color: rgba(111,182,255,0.22);
+  background: linear-gradient(180deg, rgba(249,115,22,0.32), rgba(255,107,0,0.20));
+  border-color: rgba(249,115,22,0.28);
 }
 
 /* section headings if you add them later */
@@ -458,9 +467,9 @@ input, button { font: inherit; }
   letter-spacing:.12em;
   padding:2px 8px;
   border-radius:999px;
-  border:1px solid rgba(111,182,255,0.25);
-  color: rgba(111,182,255,0.85);
-  background: rgba(111,182,255,0.08);
+  border:1px solid rgba(249,115,22,0.30);
+  color: rgba(249,115,22,0.90);
+  background: rgba(249,115,22,0.10);
 }
 
 .global-search input[type="search"] {
@@ -474,7 +483,7 @@ input, button { font: inherit; }
   font:inherit;
 }
 .global-search input:focus {
-  border-color: rgba(111,182,255,0.45);
+  border-color: rgba(249,115,22,0.50);
   box-shadow: 0 0 0 3px var(--focus);
 }
 
@@ -644,7 +653,7 @@ input, button { font: inherit; }
 .badge--success { background: rgba(52,211,153,0.15); border-color: rgba(52,211,153,0.30); color: #34d399; }
 .badge--warn    { background: rgba(251,191,36,0.15);  border-color: rgba(251,191,36,0.30);  color: #fbbf24; }
 .badge--danger  { background: rgba(255,90,122,0.15);  border-color: rgba(255,90,122,0.30);  color: #ff5a7a; }
-.badge--info    { background: rgba(111,182,255,0.15); border-color: rgba(111,182,255,0.30); color: var(--accent); }
+.badge--info    { background: rgba(249,115,22,0.15);  border-color: rgba(249,115,22,0.30);  color: var(--accent); }
 .badge--muted   { background: rgba(255,255,255,0.06); border-color: rgba(255,255,255,0.10); color: var(--muted); }
 
 /* =========================
@@ -674,7 +683,7 @@ input, button { font: inherit; }
 .filter-bar input[type="search"] { min-width: 240px; flex:1; }
 .filter-bar input:focus,
 .filter-bar select:focus {
-  border-color: rgba(111,182,255,0.45);
+  border-color: rgba(249,115,22,0.50);
   box-shadow: 0 0 0 3px var(--focus);
 }
 .filter-bar select option { background: #0b1020; }
@@ -729,7 +738,7 @@ input, button { font: inherit; }
 }
 .dc-card:hover {
   background: rgba(255,255,255,0.06);
-  border-color: rgba(111,182,255,0.22);
+  border-color: rgba(249,115,22,0.28);
   transform: translateY(-2px);
 }
 .dc-card__header {
@@ -770,7 +779,7 @@ input, button { font: inherit; }
 }
 .rack-summary-card:hover {
   background: rgba(255,255,255,0.06);
-  border-color: rgba(111,182,255,0.20);
+  border-color: rgba(249,115,22,0.25);
   transform: translateY(-1px);
 }
 .rack-summary-card__name  { font-weight:600; font-size:14px; margin-bottom:3px; }
@@ -829,8 +838,8 @@ input, button { font: inherit; }
   border-color: rgba(255,255,255,0.08);
 }
 .rack-list__item.is-active {
-  background: rgba(111,182,255,0.12);
-  border-color: rgba(111,182,255,0.22);
+  background: rgba(249,115,22,0.12);
+  border-color: rgba(249,115,22,0.25);
   color: var(--text);
 }
 .rack-list__name { font-weight:500; }
@@ -897,7 +906,7 @@ input, button { font: inherit; }
   padding-bottom: 8px;
 }
 .rack-slot--filled:hover { background: rgba(255,255,255,0.04); }
-.rack-slot--selected      { outline: 2px solid rgba(111,182,255,0.5); outline-offset: -2px; }
+.rack-slot--selected      { outline: 2px solid rgba(249,115,22,0.55); outline-offset: -2px; }
 .rack-slot--empty         { background: rgba(0,0,0,0.15); }
 
 /* Status colours */
@@ -977,4 +986,128 @@ dd { margin:0; word-break:break-all; }
   top: 60px;
   height: calc(100vh - 60px);
   min-height: calc(100vh - 60px);
+}
+
+/* =========================
+   Glasshouse Logo & Brand
+   ========================= */
+
+/* Logo image — white by default (SVG fill=white already) */
+.brand__logo {
+  width: 32px;
+  height: 37px;   /* preserves pointy-top hex aspect ratio */
+  flex-shrink: 0;
+  filter: var(--logo-glow);
+  transition: filter .25s ease;
+  display: block;
+}
+
+/* Pulse glow slightly on hover for delight */
+.brand:hover .brand__logo {
+  filter:
+    drop-shadow(0 0  8px rgba(249,115,22,1.00))
+    drop-shadow(0 0 22px rgba(249,115,22,0.70))
+    drop-shadow(0 0 50px rgba(255,107,0,0.40))
+    drop-shadow(0 0 90px rgba(255,107,0,0.20));
+}
+
+/* Brand name sits next to logo */
+.brand__name {
+  font-weight: 700;
+  font-size: 15px;
+  letter-spacing: .3px;
+  /* Subtle orange tint on the text */
+  background: linear-gradient(135deg, rgba(255,255,255,0.95) 40%, rgba(249,115,22,0.80));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* ── Login page logo (larger, centred) ── */
+.auth-logo-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 28px 22px 4px;
+}
+
+.auth-logo {
+  width: 64px;
+  height: 74px;
+  filter: var(--logo-glow);
+  animation: logo-breathe 3.5s ease-in-out infinite;
+}
+
+@keyframes logo-breathe {
+  0%,100% {
+    filter:
+      drop-shadow(0 0  6px rgba(249,115,22,0.85))
+      drop-shadow(0 0 18px rgba(249,115,22,0.45))
+      drop-shadow(0 0 42px rgba(249,115,22,0.20));
+  }
+  50% {
+    filter:
+      drop-shadow(0 0 10px rgba(249,115,22,1.00))
+      drop-shadow(0 0 28px rgba(249,115,22,0.65))
+      drop-shadow(0 0 60px rgba(255,107,0,0.35))
+      drop-shadow(0 0 90px rgba(255,107,0,0.15));
+  }
+}
+
+.auth-logo-wrap h1 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: .4px;
+  background: linear-gradient(135deg, rgba(255,255,255,0.96) 30%, rgba(249,115,22,0.80));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.auth-logo-wrap p {
+  margin: 0;
+  font-size: 12px;
+  color: var(--muted);
+  letter-spacing: .06em;
+}
+
+/* ── Topbar orange accent line at very top of page ── */
+.topbar::before {
+  content: "";
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 2px;
+  background: linear-gradient(90deg,
+    transparent 0%,
+    rgba(249,115,22,0.60) 20%,
+    rgba(249,115,22,0.90) 50%,
+    rgba(249,115,22,0.60) 80%,
+    transparent 100%
+  );
+}
+.topbar { position: relative; }
+
+/* ── Sidebar logo strip at top (optional accent) ── */
+.sidebar-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 10px 14px 10px;
+  border-bottom: 1px solid rgba(249,115,22,0.10);
+  margin-bottom: 6px;
+}
+.sidebar-brand__logo {
+  width: 24px;
+  height: 28px;
+  filter: var(--logo-glow);
+  opacity: 0.85;
+}
+.sidebar-brand__label {
+  font-size: 11px;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  color: rgba(249,115,22,0.70);
+  font-weight: 600;
 }
