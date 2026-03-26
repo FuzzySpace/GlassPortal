@@ -1,11 +1,11 @@
 -- ============================================================
---  Glasshouse NOC Provisioning Portal — Database Schema
+--  Glasshouse NOC Provisioning Portal - Database Schema
 --  All-in-one management: hosting, MSP, hardware tracking
 --
 --  FRESH INSTALL:
 --    1. Open MySQL / phpMyAdmin / HeidiSQL / MySQL Workbench
 --    2. Run this file as root (or any user with CREATE privilege)
---    That's it — database, user, tables, and seed data are all here.
+--    That's it - database, user, tables, and seed data are all here.
 --
 --  XAMPP / WAMP default root has no password.
 --  Command line: mysql -u root < schema.sql
@@ -17,6 +17,7 @@ CREATE DATABASE IF NOT EXISTS provisioning_portal
     COLLATE utf8mb4_unicode_ci;
 
 USE provisioning_portal;
+SET NAMES utf8mb4;
 
 -- Create a restricted application user (safe for production)
 -- If you prefer to use root locally, skip this and update config.php.
@@ -233,12 +234,13 @@ CREATE TABLE IF NOT EXISTS automation_runs (
     error_code          VARCHAR(50)  NULL,
     error_message       TEXT NULL,
     created_at          DATETIME DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (automation_id) REFERENCES automations(id) ON DELETE SET NULL
+    FOREIGN KEY (automation_id)          REFERENCES automations(id) ON DELETE SET NULL,
+    FOREIGN KEY (initiated_by_user_id)   REFERENCES users(id)       ON DELETE SET NULL
 );
 
 CREATE TABLE IF NOT EXISTS automation_run_logs (
     id         INT AUTO_INCREMENT PRIMARY KEY,
-    run_id     INT,
+    run_id     INT NOT NULL,
     level      VARCHAR(20),
     message    TEXT,
     context    JSON,
@@ -264,7 +266,8 @@ CREATE TABLE IF NOT EXISTS ansible_scripts (
     is_active          TINYINT DEFAULT 1,
     created_by_user_id INT NULL,
     created_at         DATETIME DEFAULT CURRENT_TIMESTAMP,
-    updated_at         DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+    updated_at         DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (created_by_user_id) REFERENCES users(id) ON DELETE SET NULL
 );
 
 -- ============================================================
@@ -291,7 +294,8 @@ CREATE TABLE IF NOT EXISTS server_provisioning (
     notes        TEXT NULL,
     created_at   DATETIME DEFAULT CURRENT_TIMESTAMP,
     completed_at DATETIME NULL,
-    FOREIGN KEY (node_id) REFERENCES nodes(id) ON DELETE CASCADE
+    FOREIGN KEY (node_id)    REFERENCES nodes(id) ON DELETE CASCADE,
+    FOREIGN KEY (started_by) REFERENCES users(id) ON DELETE SET NULL
 );
 
 CREATE TABLE IF NOT EXISTS provisioning_step_log (
@@ -306,8 +310,10 @@ CREATE TABLE IF NOT EXISTS provisioning_step_log (
     completed_by_user_id INT NULL,
     completed_at         DATETIME NULL,
     created_at           DATETIME DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (provisioning_id)   REFERENCES server_provisioning(id) ON DELETE CASCADE,
-    FOREIGN KEY (automation_run_id) REFERENCES automation_runs(id)      ON DELETE SET NULL
+    FOREIGN KEY (provisioning_id)      REFERENCES server_provisioning(id) ON DELETE CASCADE,
+    FOREIGN KEY (task_id)              REFERENCES provisioning_tasks(id)  ON DELETE SET NULL,
+    FOREIGN KEY (completed_by_user_id) REFERENCES users(id)               ON DELETE SET NULL,
+    FOREIGN KEY (automation_run_id)    REFERENCES automation_runs(id)     ON DELETE SET NULL
 );
 
 -- ============================================================
@@ -332,25 +338,25 @@ INSERT IGNORE INTO provisioning_tasks (id, category, step_order, name, descripti
 (11, 'network',  21, 'Monitoring agent installed',          'Deploy Prometheus node_exporter or equivalent. Verify scrape endpoint reachable.', 1),
 (12, 'network',  22, 'Connectivity test to all services',   'Confirm reach to: DNS, NTP, SMTP relay, monitoring, logging, backup endpoints.', 1),
 -- CIS Level 1 Hardening
-(13, 'cis',      30, 'CIS 1.1 — Filesystem config',        'Disable cramfs, freevxfs, jffs2, hfs, hfsplus, squashfs, udf. Set /tmp nodev,nosuid,noexec.', 1),
-(14, 'cis',      31, 'CIS 1.2 — Software updates',         'Verify package manager GPG keys. Enable automatic security updates.', 1),
-(15, 'cis',      32, 'CIS 2.1 — Remove inetd services',    'Disable/remove chargen, daytime, echo, discard, time, tftp, xinetd.', 1),
-(16, 'cis',      33, 'CIS 2.2 — Special purpose services', 'Disable X Windows, Avahi, CUPS, DHCP, LDAP, NFS, DNS, FTP, HTTP, IMAP/POP3 unless required.', 1),
-(17, 'cis',      34, 'CIS 3.1 — Network parameters',       'Disable IP forwarding, redirects, source routing. Enable reverse path filtering, SYN cookies.', 1),
-(18, 'cis',      35, 'CIS 3.2 — IPv6 params',              'Disable IPv6 router/redirect acceptance. Disable IPv6 if not in use.', 1),
-(19, 'cis',      36, 'CIS 4.1 — Logging configured',       'Configure rsyslog/journald. Ensure remote syslog forwarded. Log rotation set.', 1),
-(20, 'cis',      37, 'CIS 4.2 — Auditd rules',             'Install auditd. Configure rules: logins, sudo, file changes, privileged commands, cron.', 1),
-(21, 'cis',      38, 'CIS 5.1 — Cron access control',      'Restrict cron/at to authorised users. Verify /etc/cron.allow and /etc/at.allow.', 1),
-(22, 'cis',      39, 'CIS 5.2 — SSH server config',        'Protocol 2 only, MaxAuthTries ≤4, PermitRootLogin no, PermitEmptyPasswords no, X11Forwarding no, AllowUsers/Groups set.', 1),
-(23, 'cis',      40, 'CIS 5.3 — PAM config',               'Configure pam_pwquality (minlen=14, dcredit=-1, ucredit=-1). Lock after 5 failures. Password history 5.', 1),
-(24, 'cis',      41, 'CIS 5.4 — User accounts',            'Set password expiry (90 days), min age (7 days), warn (7 days). Remove unused users. Lock system accounts.', 1),
-(25, 'cis',      42, 'CIS 5.5 — Root access',              'Disable direct root SSH. Use sudo. Restrict su via pam_wheel. Audit root PATH.', 1),
-(26, 'cis',      43, 'CIS 6.1 — File permissions',         'Verify permissions on: passwd, shadow, group, gshadow, grub.cfg, cron dirs, SSH host keys.', 1),
-(27, 'cis',      44, 'CIS 6.2 — User/group integrity',     'No duplicate UIDs/GIDs. No .netrc/.rhosts. Home dir permissions 750. All users have valid shells.', 1),
+(13, 'cis',      30, 'CIS 1.1 - Filesystem config',        'Disable cramfs, freevxfs, jffs2, hfs, hfsplus, squashfs, udf. Set /tmp nodev,nosuid,noexec.', 1),
+(14, 'cis',      31, 'CIS 1.2 - Software updates',         'Verify package manager GPG keys. Enable automatic security updates.', 1),
+(15, 'cis',      32, 'CIS 2.1 - Remove inetd services',    'Disable/remove chargen, daytime, echo, discard, time, tftp, xinetd.', 1),
+(16, 'cis',      33, 'CIS 2.2 - Special purpose services', 'Disable X Windows, Avahi, CUPS, DHCP, LDAP, NFS, DNS, FTP, HTTP, IMAP/POP3 unless required.', 1),
+(17, 'cis',      34, 'CIS 3.1 - Network parameters',       'Disable IP forwarding, redirects, source routing. Enable reverse path filtering, SYN cookies.', 1),
+(18, 'cis',      35, 'CIS 3.2 - IPv6 params',              'Disable IPv6 router/redirect acceptance. Disable IPv6 if not in use.', 1),
+(19, 'cis',      36, 'CIS 4.1 - Logging configured',       'Configure rsyslog/journald. Ensure remote syslog forwarded. Log rotation set.', 1),
+(20, 'cis',      37, 'CIS 4.2 - Auditd rules',             'Install auditd. Configure rules: logins, sudo, file changes, privileged commands, cron.', 1),
+(21, 'cis',      38, 'CIS 5.1 - Cron access control',      'Restrict cron/at to authorised users. Verify /etc/cron.allow and /etc/at.allow.', 1),
+(22, 'cis',      39, 'CIS 5.2 - SSH server config',        'Protocol 2 only, MaxAuthTries <=4, PermitRootLogin no, PermitEmptyPasswords no, X11Forwarding no, AllowUsers/Groups set.', 1),
+(23, 'cis',      40, 'CIS 5.3 - PAM config',               'Configure pam_pwquality (minlen=14, dcredit=-1, ucredit=-1). Lock after 5 failures. Password history 5.', 1),
+(24, 'cis',      41, 'CIS 5.4 - User accounts',            'Set password expiry (90 days), min age (7 days), warn (7 days). Remove unused users. Lock system accounts.', 1),
+(25, 'cis',      42, 'CIS 5.5 - Root access',              'Disable direct root SSH. Use sudo. Restrict su via pam_wheel. Audit root PATH.', 1),
+(26, 'cis',      43, 'CIS 6.1 - File permissions',         'Verify permissions on: passwd, shadow, group, gshadow, grub.cfg, cron dirs, SSH host keys.', 1),
+(27, 'cis',      44, 'CIS 6.2 - User/group integrity',     'No duplicate UIDs/GIDs. No .netrc/.rhosts. Home dir permissions 750. All users have valid shells.', 1),
 -- CIS Level 2 extras
-(28, 'cis',      50, 'CIS L2 — SELinux / AppArmor',        'Enable and enforce mandatory access control (SELinux enforcing or AppArmor complain→enforce).', 0),
-(29, 'cis',      51, 'CIS L2 — Bootloader password',       'Set GRUB2 superuser password. Verify /boot/grub2/grub.cfg permissions 400.', 0),
-(30, 'cis',      52, 'CIS L2 — AIDE / IDS baseline',       'Install AIDE. Initialise database. Schedule daily check. Alert on changes.', 0),
+(28, 'cis',      50, 'CIS L2 - SELinux / AppArmor',        'Enable and enforce mandatory access control (SELinux enforcing or AppArmor complain->enforce).', 0),
+(29, 'cis',      51, 'CIS L2 - Bootloader password',       'Set GRUB2 superuser password. Verify /boot/grub2/grub.cfg permissions 400.', 0),
+(30, 'cis',      52, 'CIS L2 - AIDE / IDS baseline',       'Install AIDE. Initialise database. Schedule daily check. Alert on changes.', 0),
 -- Security final checks
 (31, 'security', 60, 'Vulnerability scan',                  'Run OpenVAS/Nessus scan post-build. Review and remediate any critical/high findings before go-live.', 1),
 (32, 'security', 61, 'Secrets / credential audit',          'Verify no plaintext passwords in /etc, cron, or home dirs. Confirm SSH keys are per-user, not shared.', 1),
