@@ -48,13 +48,9 @@ $whereSql = "WHERE " . implode(" AND ", $where);
 // dropdown options
 $automationOptions = $pdo->query("SELECT id, name FROM automations ORDER BY name ASC")->fetchAll();
 
-// ---- KPIs (within window + filter set, except search term) ----
-// For KPI accuracy, apply the same base filters excluding q (search).
-$kpiWhere = [];
+// ---- KPIs (within window + automation filter only — status is shown per-card) ----
+$kpiWhere = ["created_at >= (NOW() - $windowSql)"];
 $kpiParams = [];
-
-$kpiWhere[] = "created_at >= (NOW() - $windowSql)";
-if ($status !== 'all') { $kpiWhere[] = "status = ?"; $kpiParams[] = $status; }
 if ($automation !== 'all') { $kpiWhere[] = "automation_id = ?"; $kpiParams[] = (int)$automation; }
 $kpiWhereSql = "WHERE " . implode(" AND ", $kpiWhere);
 
@@ -62,19 +58,19 @@ $stmt = $pdo->prepare("SELECT COUNT(*) FROM automation_runs $kpiWhereSql");
 $stmt->execute($kpiParams);
 $totalRuns = (int)$stmt->fetchColumn();
 
-$stmt = $pdo->prepare("SELECT COUNT(*) FROM automation_runs $kpiWhereSql AND status='success'");
+$stmt = $pdo->prepare("SELECT COUNT(*) FROM automation_runs $kpiWhereSql AND status = 'success'");
 $stmt->execute($kpiParams);
 $successRuns = (int)$stmt->fetchColumn();
 
-$stmt = $pdo->prepare("SELECT COUNT(*) FROM automation_runs $kpiWhereSql AND status='failed'");
+$stmt = $pdo->prepare("SELECT COUNT(*) FROM automation_runs $kpiWhereSql AND status = 'failed'");
 $stmt->execute($kpiParams);
 $failedRuns = (int)$stmt->fetchColumn();
 
-$stmt = $pdo->prepare("SELECT COUNT(*) FROM automation_runs $kpiWhereSql AND status='running'");
+$stmt = $pdo->prepare("SELECT COUNT(*) FROM automation_runs $kpiWhereSql AND status = 'running'");
 $stmt->execute($kpiParams);
 $runningNow = (int)$stmt->fetchColumn();
 
-$stmt = $pdo->prepare("SELECT COUNT(*) FROM automation_runs $kpiWhereSql AND status='queued'");
+$stmt = $pdo->prepare("SELECT COUNT(*) FROM automation_runs $kpiWhereSql AND status = 'queued'");
 $stmt->execute($kpiParams);
 $queuedNow = (int)$stmt->fetchColumn();
 
