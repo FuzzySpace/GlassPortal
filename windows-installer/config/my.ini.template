@@ -1,0 +1,39 @@
+# ============================================================
+#  MariaDB Configuration for Glasshouse NOC Portal
+#  {INSTALL_DIR} is replaced by the installer at setup time
+# ============================================================
+
+[mysqld]
+datadir         = {INSTALL_DIR}/data/mysql
+socket          = {INSTALL_DIR}/data/mysql.sock
+port            = 3306
+bind-address    = 127.0.0.1
+
+# InnoDB settings
+innodb_buffer_pool_size = 128M
+innodb_log_file_size    = 32M
+innodb_flush_method     = O_DSYNC
+innodb_file_per_table   = 1
+
+# General settings
+character-set-server  = utf8mb4
+collation-server      = utf8mb4_unicode_ci
+max_connections       = 50
+max_allowed_packet    = 64M
+skip-name-resolve
+
+# Logging
+general_log           = 0
+log_error             = {INSTALL_DIR}/logs/mariadb-error.log
+slow_query_log        = 0
+
+# Security — listen on loopback only
+local-infile          = 0
+
+[client]
+port     = 3306
+socket   = {INSTALL_DIR}/data/mysql.sock
+
+[mysqldump]
+quick
+max_allowed_packet = 64M

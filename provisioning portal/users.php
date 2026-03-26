@@ -42,8 +42,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
 
             if (!$errors) {
-                $exists = (int)$pdo->prepare("SELECT COUNT(*) FROM users WHERE email = ?")->execute([$email])
-                    ? $pdo->prepare("SELECT COUNT(*) FROM users WHERE email = ?")->execute([$email]) && false : 0;
                 $chk = $pdo->prepare("SELECT COUNT(*) FROM users WHERE email = ?");
                 $chk->execute([$email]);
                 if ((int)$chk->fetchColumn() > 0) {

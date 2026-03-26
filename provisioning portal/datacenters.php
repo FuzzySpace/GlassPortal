@@ -223,7 +223,7 @@ function status_badge_class(string $s): string {
                         <?php endif; ?>
                         <div class="rack-summary-card__stats">
                           <span><?= (int)$r['node_count'] ?> servers</span>
-                          <span><?= (int)($r['used_units'] ?? 0) ?>/<? = (int)$r['total_units'] ?>U</span>
+                          <span><?= (int)($r['used_units'] ?? 0) ?>/<?= (int)$r['total_units'] ?>U</span>
                           <?php if ((int)$r['down_count'] > 0): ?>
                             <span class="badge badge--danger"><?= (int)$r['down_count'] ?> down</span>
                           <?php elseif ((int)$r['healthy'] > 0): ?>

@@ -101,13 +101,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 // ---- Load provisioning history ----
-$provHistory = $pdo->prepare("
+$histStmt = $pdo->prepare("
     SELECT p.*, u.email AS started_by_email
     FROM server_provisioning p
-    LEFT JOIN users u ON u.id=p.started_by
-    WHERE p.node_id=?
+    LEFT JOIN users u ON u.id = p.started_by
+    WHERE p.node_id = ?
     ORDER BY p.created_at DESC
-")->execute([$nodeId]) ? $pdo->query("SELECT p.*, u.email AS started_by_email FROM server_provisioning p LEFT JOIN users u ON u.id=p.started_by WHERE p.node_id=$nodeId ORDER BY p.created_at DESC")->fetchAll() : [];
+");
+$histStmt->execute([$nodeId]);
+$provHistory = $histStmt->fetchAll();
 
 // ---- Load current session steps ----
 $steps     = [];

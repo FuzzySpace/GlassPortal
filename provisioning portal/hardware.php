@@ -74,8 +74,10 @@ $sql = "
     d.name  AS dc_name,
     d.code  AS dc_code,
     d.city  AS dc_city,
+    r.id    AS rack_id,
     r.name  AS rack_name,
     r.row_label AS rack_row,
+    c.id    AS cust_id,
     c.name  AS customer_name,
     c.service_level AS customer_service_level,
     c.account_status AS customer_account_status
