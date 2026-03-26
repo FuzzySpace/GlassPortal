@@ -233,12 +233,13 @@ CREATE TABLE IF NOT EXISTS automation_runs (
     error_code          VARCHAR(50)  NULL,
     error_message       TEXT NULL,
     created_at          DATETIME DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (automation_id) REFERENCES automations(id) ON DELETE SET NULL
+    FOREIGN KEY (automation_id)          REFERENCES automations(id) ON DELETE SET NULL,
+    FOREIGN KEY (initiated_by_user_id)   REFERENCES users(id)       ON DELETE SET NULL
 );
 
 CREATE TABLE IF NOT EXISTS automation_run_logs (
     id         INT AUTO_INCREMENT PRIMARY KEY,
-    run_id     INT,
+    run_id     INT NOT NULL,
     level      VARCHAR(20),
     message    TEXT,
     context    JSON,
@@ -264,7 +265,8 @@ CREATE TABLE IF NOT EXISTS ansible_scripts (
     is_active          TINYINT DEFAULT 1,
     created_by_user_id INT NULL,
     created_at         DATETIME DEFAULT CURRENT_TIMESTAMP,
-    updated_at         DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+    updated_at         DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (created_by_user_id) REFERENCES users(id) ON DELETE SET NULL
 );
 
 -- ============================================================
@@ -291,7 +293,8 @@ CREATE TABLE IF NOT EXISTS server_provisioning (
     notes        TEXT NULL,
     created_at   DATETIME DEFAULT CURRENT_TIMESTAMP,
     completed_at DATETIME NULL,
-    FOREIGN KEY (node_id) REFERENCES nodes(id) ON DELETE CASCADE
+    FOREIGN KEY (node_id)    REFERENCES nodes(id) ON DELETE CASCADE,
+    FOREIGN KEY (started_by) REFERENCES users(id) ON DELETE SET NULL
 );
 
 CREATE TABLE IF NOT EXISTS provisioning_step_log (
@@ -306,8 +309,10 @@ CREATE TABLE IF NOT EXISTS provisioning_step_log (
     completed_by_user_id INT NULL,
     completed_at         DATETIME NULL,
     created_at           DATETIME DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (provisioning_id)   REFERENCES server_provisioning(id) ON DELETE CASCADE,
-    FOREIGN KEY (automation_run_id) REFERENCES automation_runs(id)      ON DELETE SET NULL
+    FOREIGN KEY (provisioning_id)      REFERENCES server_provisioning(id) ON DELETE CASCADE,
+    FOREIGN KEY (task_id)              REFERENCES provisioning_tasks(id)  ON DELETE SET NULL,
+    FOREIGN KEY (completed_by_user_id) REFERENCES users(id)               ON DELETE SET NULL,
+    FOREIGN KEY (automation_run_id)    REFERENCES automation_runs(id)     ON DELETE SET NULL
 );
 
 -- ============================================================
