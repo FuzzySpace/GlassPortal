@@ -1,0 +1,57 @@
+; ============================================================
+;  PHP Configuration for Glasshouse NOC Portal
+;  {INSTALL_DIR} is replaced by the installer at setup time
+; ============================================================
+
+[PHP]
+engine = On
+short_open_tag = Off
+precision = 14
+output_buffering = 4096
+zlib.output_compression = Off
+implicit_flush = Off
+serialize_precision = -1
+disable_functions = exec,passthru,shell_exec,system,proc_open,popen,curl_exec,curl_multi_exec,parse_ini_file,show_source
+; NOTE: The portal's automation worker (automation_worker.php) uses proc_open
+; for running ansible. If you are using the worker, remove proc_open from disable_functions.
+disable_classes =
+expose_php = Off
+max_execution_time = 300
+max_input_time = 300
+memory_limit = 256M
+error_reporting = E_ALL & ~E_DEPRECATED & ~E_STRICT
+display_errors = Off
+display_startup_errors = Off
+log_errors = On
+error_log = {INSTALL_DIR}\logs\php-errors.log
+post_max_size = 16M
+upload_max_filesize = 16M
+max_file_uploads = 20
+default_charset = "UTF-8"
+date.timezone = "Australia/Sydney"
+
+[Session]
+session.save_handler = files
+session.save_path = "{INSTALL_DIR}\data\sessions"
+session.use_strict_mode = 1
+session.cookie_httponly = 1
+session.cookie_secure = 0
+session.cookie_samesite = "Lax"
+session.gc_maxlifetime = 3600
+session.name = GLASSNOC
+
+[PDO]
+pdo_mysql.default_socket =
+
+[MySQLi]
+mysqli.default_socket =
+
+; ---- Extensions ----
+extension_dir = "{INSTALL_DIR}\php\ext"
+extension = pdo_mysql
+extension = mysqli
+extension = curl
+extension = openssl
+extension = mbstring
+extension = fileinfo
+extension = sodium

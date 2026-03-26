@@ -1,0 +1,4 @@
+# Vendor binaries are downloaded locally — not committed to repo
+# See README-INSTALLER.txt STEP 1 for download instructions
+vendor/
+dist/

@@ -1,0 +1,75 @@
+# ============================================================
+#  Apache 2.4 Configuration for Glasshouse NOC Portal
+#  {INSTALL_DIR} is replaced by the installer at setup time
+#  {PORT} is replaced by the installer at setup time
+# ============================================================
+
+ServerRoot "{INSTALL_DIR}/apache"
+ServerName localhost
+Listen {PORT}
+
+# ---- Required modules ----
+LoadModule authz_core_module    modules/mod_authz_core.so
+LoadModule authz_host_module    modules/mod_authz_host.so
+LoadModule access_compat_module modules/mod_access_compat.so
+LoadModule dir_module           modules/mod_dir.so
+LoadModule env_module           modules/mod_env.so
+LoadModule headers_module       modules/mod_headers.so
+LoadModule log_config_module    modules/mod_log_config.so
+LoadModule mime_module          modules/mod_mime.so
+LoadModule negotiation_module   modules/mod_negotiation.so
+LoadModule rewrite_module       modules/mod_rewrite.so
+LoadModule setenvif_module      modules/mod_setenvif.so
+LoadModule unixd_module         modules/mod_unixd.so
+
+# PHP via FastCGI / mod_php (adjust for your PHP module path)
+LoadModule php_module "{INSTALL_DIR}/php/php8apache2_4.dll"
+PHPIniDir "{INSTALL_DIR}/config"
+
+<IfModule php_module>
+    AddType application/x-httpd-php .php
+</IfModule>
+
+# ---- Server settings ----
+ServerTokens Prod
+ServerSignature Off
+Timeout 300
+KeepAlive On
+MaxKeepAliveRequests 100
+KeepAliveTimeout 5
+
+# ---- Document root ----
+DocumentRoot "{INSTALL_DIR}/htdocs"
+
+<Directory "{INSTALL_DIR}/htdocs">
+    Options -Indexes -FollowSymLinks
+    AllowOverride All
+    Require all granted
+
+    # Default to dashboard on root request
+    DirectoryIndex dashboard.php index.php
+</Directory>
+
+# Block access to sensitive directories
+<DirectoryMatch "{INSTALL_DIR}/htdocs/(database|auth|worker)">
+    Require all denied
+</DirectoryMatch>
+
+# ---- Security headers ----
+<IfModule headers_module>
+    Header always set X-Frame-Options "SAMEORIGIN"
+    Header always set X-Content-Type-Options "nosniff"
+    Header always set Referrer-Policy "strict-origin-when-cross-origin"
+    Header always set X-XSS-Protection "1; mode=block"
+</IfModule>
+
+# ---- Logging ----
+ErrorLog "{INSTALL_DIR}/logs/apache-error.log"
+CustomLog "{INSTALL_DIR}/logs/apache-access.log" combined
+LogLevel warn
+
+<IfModule mime_module>
+    TypesConfig "{INSTALL_DIR}/apache/conf/mime.types"
+    AddType application/x-compress .Z
+    AddType application/x-gzip .gz .tgz
+</IfModule>

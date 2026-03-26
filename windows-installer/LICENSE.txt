@@ -1,0 +1,12 @@
+Glasshouse NOC Provisioning Portal
+Copyright (c) 2024-2026 Glasshouse Hosting
+
+All rights reserved. This software is proprietary and confidential.
+Unauthorised copying, distribution, or modification is prohibited.
+
+Third-party components bundled in this installer:
+
+  PHP          — PHP License v3.01    https://www.php.net/license/
+  MariaDB      — GNU GPL v2           https://mariadb.com/kb/en/mariadb-license/
+  Apache HTTPD — Apache License 2.0   https://www.apache.org/licenses/LICENSE-2.0
+  Inno Setup   — Inno Setup License   https://jrsoftware.org/files/is/license.txt
