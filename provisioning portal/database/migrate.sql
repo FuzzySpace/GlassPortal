@@ -53,6 +53,14 @@ ALTER TABLE nodes
     ADD COLUMN IF NOT EXISTS updated_at      DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP;
 
 -- ============================================================
+--  users: add last_login_at if missing
+--  (login_handler.php updates this column on every login)
+-- ============================================================
+
+ALTER TABLE users
+    ADD COLUMN IF NOT EXISTS last_login_at DATETIME NULL;
+
+-- ============================================================
 --  automations: add schedule_cron
 -- ============================================================
 
@@ -138,23 +146,13 @@ CREATE TABLE IF NOT EXISTS customers (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ============================================================
---  Add missing FK constraints (ignore errors if they exist)
+--  FK constraints are intentionally omitted from this migration.
+--  The application enforces referential integrity at the query
+--  level. Adding FK constraints to an existing live database
+--  with accumulated data is fragile (type mismatches, orphaned
+--  rows, naming conflicts). If you want FK enforcement, add them
+--  manually after verifying data consistency.
 -- ============================================================
-
--- nodes.customer_id -> customers
-ALTER TABLE nodes
-    ADD CONSTRAINT fk_nodes_customer
-        FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE SET NULL;
-
--- automation_runs.initiated_by_user_id -> users
-ALTER TABLE automation_runs
-    ADD CONSTRAINT fk_runs_initiator
-        FOREIGN KEY (initiated_by_user_id) REFERENCES users(id) ON DELETE SET NULL;
-
--- ansible_scripts.created_by_user_id -> users
-ALTER TABLE ansible_scripts
-    ADD CONSTRAINT fk_scripts_creator
-        FOREIGN KEY (created_by_user_id) REFERENCES users(id) ON DELETE SET NULL;
 
 SET FOREIGN_KEY_CHECKS = 1;
 
