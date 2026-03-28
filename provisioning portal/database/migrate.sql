@@ -19,8 +19,11 @@ USE provisioning_portal;
 --  nodes: add customer_id, rack placement columns
 -- ============================================================
 
-ALTER TABLE nodes
-    MODIFY COLUMN id INT UNSIGNED NOT NULL AUTO_INCREMENT;
+-- NOTE: We do NOT modify nodes.id type here. The live server has a
+-- 'deployments' table with fk_deployments_node referencing nodes.id.
+-- Changing the PK type requires dropping all dependent FKs first,
+-- which is a separate deliberate operation. The ADD COLUMN fixes
+-- below are sufficient to restore portal functionality.
 
 ALTER TABLE nodes
     ADD COLUMN IF NOT EXISTS customer_id INT UNSIGNED NULL AFTER role;
@@ -61,13 +64,6 @@ ALTER TABLE automation_runs
     ADD COLUMN IF NOT EXISTS error_message        TEXT NULL AFTER error_code;
 
 -- ============================================================
---  automation_run_logs: ensure run_id is NOT NULL
--- ============================================================
-
-ALTER TABLE automation_run_logs
-    MODIFY COLUMN run_id INT UNSIGNED NOT NULL;
-
--- ============================================================
 --  ansible_scripts: add missing columns if table existed early
 -- ============================================================
 
@@ -94,34 +90,6 @@ ALTER TABLE ansible_scripts
 
 ALTER TABLE ansible_scripts
     ADD COLUMN IF NOT EXISTS updated_at         DATETIME          NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP AFTER created_at;
-
--- ============================================================
---  audit_logs: replace JSON with LONGTEXT if needed
--- ============================================================
-
-ALTER TABLE audit_logs
-    MODIFY COLUMN meta LONGTEXT NULL;
-
--- ============================================================
---  automation_runs: replace JSON with LONGTEXT if needed
--- ============================================================
-
-ALTER TABLE automation_runs
-    MODIFY COLUMN meta LONGTEXT NULL;
-
--- ============================================================
---  automation_run_logs: replace JSON with LONGTEXT if needed
--- ============================================================
-
-ALTER TABLE automation_run_logs
-    MODIFY COLUMN context LONGTEXT NULL;
-
--- ============================================================
---  ansible_scripts: replace JSON with LONGTEXT if needed
--- ============================================================
-
-ALTER TABLE ansible_scripts
-    MODIFY COLUMN extra_vars LONGTEXT NULL;
 
 -- ============================================================
 --  Add missing FK constraints (ignore errors if they exist)
