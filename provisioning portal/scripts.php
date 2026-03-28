@@ -85,10 +85,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $canEdit) {
 
         // Delete
         } elseif ($action === 'delete' && ctype_digit($_POST['id'] ?? '')) {
-            $tid = (int)$_POST['id'];
-            $chk = $pdo->prepare("SELECT COUNT(*) FROM automation_runs WHERE meta->>'$.script.script_id' = ?");
-            $chk->execute([(string)$tid]);
-            $inUse = (int)$chk->fetchColumn();
+            $tid   = (int)$_POST['id'];
+            $inUse = 0;
+            try {
+                $chk = $pdo->prepare("SELECT COUNT(*) FROM automation_runs WHERE meta->>'$.script.script_id' = ?");
+                $chk->execute([(string)$tid]);
+                $inUse = (int)$chk->fetchColumn();
+            } catch (\PDOException $e) {
+                // meta column not present — allow delete to proceed
+            }
             if ($inUse > 0) {
                 $errors[] = "Cannot delete: script has been used in {$inUse} run(s). Disable it instead.";
             } else {
@@ -124,17 +129,28 @@ if ($q !== '') {
 $whereSql = implode(" AND ", $where);
 
 $scripts = $pdo->prepare("
-    SELECT s.*, u.email AS created_by_email,
-           COUNT(DISTINCT r.id) AS run_count
+    SELECT s.*, u.email AS created_by_email
     FROM ansible_scripts s
     LEFT JOIN users u ON u.id = s.created_by_user_id
-    LEFT JOIN automation_runs r ON r.meta->>'$.script.script_id' = CAST(s.id AS CHAR)
     WHERE $whereSql
-    GROUP BY s.id
     ORDER BY s.category, s.name
 ");
 $scripts->execute($params);
 $scripts = $scripts->fetchAll();
+
+// Count runs per script separately — avoids dependency on automation_runs.meta column
+$runCounts = [];
+try {
+    $rc = $pdo->query("SELECT meta->>'$.script.script_id' AS sid, COUNT(*) AS cnt
+                       FROM automation_runs
+                       WHERE meta IS NOT NULL AND meta != ''
+                       GROUP BY sid");
+    foreach ($rc->fetchAll() as $row) {
+        if ($row['sid'] !== null) $runCounts[(int)$row['sid']] = (int)$row['cnt'];
+    }
+} catch (\PDOException $e) {
+    // meta column not yet added to automation_runs — run migrate.sql to enable run counts
+}
 
 $categories = $pdo->query("SELECT DISTINCT category FROM ansible_scripts WHERE category IS NOT NULL ORDER BY category")->fetchAll(PDO::FETCH_COLUMN);
 $totalActive = (int)$pdo->query("SELECT COUNT(*) FROM ansible_scripts WHERE is_active=1")->fetchColumn();
@@ -344,7 +360,7 @@ ksort($grouped);
                         </td>
                         <td class="muted small"><?= (int)$s['timeout_seconds'] ?>s</td>
                         <td class="muted small"><?= $s['requires_sudo'] ? '<span class="badge badge--warn">yes</span>' : 'no' ?></td>
-                        <td><?= (int)$s['run_count'] ?></td>
+                        <td><?= $runCounts[(int)$s['id']] ?? 0 ?></td>
                         <td>
                           <span class="<?= $s['is_active'] ? 'badge badge--success' : 'badge badge--muted' ?>">
                             <?= $s['is_active'] ? 'active' : 'inactive' ?>
