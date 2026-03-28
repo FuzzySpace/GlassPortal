@@ -43,18 +43,21 @@ if (!$server) {
 }
 
 // ---- Recent automation runs on this node ----
-$runsStmt = $pdo->prepare("
-    SELECT ar.id, ar.status, ar.created_at, ar.duration_ms,
-           a.name AS automation_name
-    FROM automation_runs ar
-    JOIN automations a ON a.id = ar.automation_id
-    WHERE JSON_SEARCH(ar.meta, 'one', ?, NULL, '$.targets') IS NOT NULL
-       OR ar.meta->>'$.node_id' = ?
-    ORDER BY ar.created_at DESC
-    LIMIT 10
-");
-$runsStmt->execute([$server['name'], (string)$id]);
-$recentRuns = $runsStmt->fetchAll();
+$recentRuns = [];
+try {
+    $runsStmt = $pdo->prepare("
+        SELECT ar.id, ar.status, ar.created_at, ar.duration_ms,
+               a.name AS automation_name
+        FROM automation_runs ar
+        JOIN automations a ON a.id = ar.automation_id
+        WHERE JSON_SEARCH(ar.meta, 'one', ?, NULL, '$.targets') IS NOT NULL
+           OR ar.meta->>'$.node_id' = ?
+        ORDER BY ar.created_at DESC
+        LIMIT 10
+    ");
+    $runsStmt->execute([$server['name'], (string)$id]);
+    $recentRuns = $runsStmt->fetchAll();
+} catch (\PDOException $e) { /* meta column not yet added via migration */ }
 
 $canSeeMgmt = in_array($role, ['owner','admin','security'], true);
 
