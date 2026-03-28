@@ -5,14 +5,106 @@ require_once __DIR__ . '/auth/require.php';
 require_once __DIR__ . '/database/connection.php';
 require_once __DIR__ . '/auth/guard.php';
 
-$u    = current_user();
-$role = $u['role'] ?? 'operator';
+$u       = current_user();
+$role    = $u['role'] ?? 'operator';
+$canEdit = in_array($role, ['owner', 'admin'], true);
+
+$errors  = [];
+$success = null;
 
 $id = isset($_GET['id']) && ctype_digit($_GET['id']) ? (int)$_GET['id'] : 0;
 if (!$id) {
     header('Location: /customers.php');
     exit;
 }
+
+// ---- Handle POST ----
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && $canEdit) {
+    $csrf = (string)($_POST['csrf'] ?? '');
+    if (!csrf_verify($csrf)) {
+        $errors[] = 'Invalid CSRF token.';
+    } else {
+        $action = (string)($_POST['action'] ?? '');
+
+        // ---- EDIT ----
+        if ($action === 'edit' && ctype_digit($_POST['customer_id'] ?? '')) {
+            $tid       = (int)$_POST['customer_id'];
+            $name      = trim((string)($_POST['name']           ?? ''));
+            $ctype     = trim((string)($_POST['company_type']   ?? ''));
+            $sl        = trim((string)($_POST['service_level']  ?? ''));
+            $status    = trim((string)($_POST['account_status'] ?? 'active'));
+            $cname     = trim((string)($_POST['contact_name']   ?? ''));
+            $cemail    = trim((string)($_POST['contact_email']  ?? ''));
+            $cphone    = trim((string)($_POST['contact_phone']  ?? ''));
+            $accno     = trim((string)($_POST['account_number'] ?? ''));
+            $mrr       = (int)($_POST['mrr_dollars']            ?? 0);
+            $address   = trim((string)($_POST['address']        ?? ''));
+            $city      = trim((string)($_POST['city']           ?? ''));
+            $state     = trim((string)($_POST['state']          ?? ''));
+            $country   = trim((string)($_POST['country']        ?? ''));
+            $cstart    = trim((string)($_POST['contract_start'] ?? ''));
+            $cend      = trim((string)($_POST['contract_end']   ?? ''));
+            $notes     = trim((string)($_POST['notes']          ?? ''));
+
+            $allowedStatus = ['active', 'suspended', 'churned'];
+            $allowedType   = ['hosting', 'msp', 'enterprise', 'smb', 'other', ''];
+            $allowedSL     = ['platinum', 'gold', 'silver', 'bronze', 'standard', ''];
+
+            if ($name === '')                               $errors[] = 'Customer name is required.';
+            if (!in_array($status, $allowedStatus, true))  $errors[] = 'Invalid account status.';
+            if (!in_array($ctype,  $allowedType,   true))  $errors[] = 'Invalid company type.';
+            if (!in_array($sl,     $allowedSL,     true))  $errors[] = 'Invalid service level.';
+
+            if (!$errors) {
+                $pdo->prepare("
+                    UPDATE customers
+                       SET name=?, company_type=?, service_level=?, account_status=?,
+                           contact_name=?, contact_email=?, contact_phone=?,
+                           account_number=?, mrr_cents=?,
+                           address=?, city=?, state=?, country=?,
+                           contract_start=?, contract_end=?, notes=?
+                     WHERE id=?
+                ")->execute([
+                    $name,
+                    $ctype   ?: null,
+                    $sl      ?: null,
+                    $status,
+                    $cname   ?: null,
+                    $cemail  ?: null,
+                    $cphone  ?: null,
+                    $accno   ?: null,
+                    $mrr > 0 ? $mrr * 100 : null,
+                    $address ?: null,
+                    $city    ?: null,
+                    $state   ?: null,
+                    $country ?: null,
+                    ($cstart !== '' ? $cstart : null),
+                    ($cend   !== '' ? $cend   : null),
+                    $notes   ?: null,
+                    $tid,
+                ]);
+                header("Location: /customer.php?id={$tid}");
+                exit;
+            }
+
+        // ---- DELETE ----
+        } elseif ($action === 'delete' && ctype_digit($_POST['customer_id'] ?? '')) {
+            $tid = (int)$_POST['customer_id'];
+            $chk = $pdo->prepare("SELECT COUNT(*) FROM nodes WHERE customer_id = ?");
+            $chk->execute([$tid]);
+            $cnt = (int)$chk->fetchColumn();
+            if ($cnt > 0) {
+                $errors[] = "Cannot delete: {$cnt} server(s) assigned to this customer. Reassign them first.";
+            } else {
+                $pdo->prepare("DELETE FROM customers WHERE id = ?")->execute([$tid]);
+                header('Location: /customers.php');
+                exit;
+            }
+        }
+    }
+}
+
+$editMode = ($canEdit && isset($_GET['edit']));
 
 // ---- Load customer ----
 $stmt = $pdo->prepare("SELECT * FROM customers WHERE id = ?");
@@ -105,8 +197,129 @@ function status_badge_class(string $s): string {
             </div>
             <div class="page-header__actions">
               <a class="btn" href="/hardware.php?customer=<?= $id ?>">View Hardware →</a>
+              <?php if ($canEdit): ?>
+                <?php if ($editMode): ?>
+                  <a class="btn" href="/customer.php?id=<?= $id ?>">Cancel Edit</a>
+                <?php else: ?>
+                  <a class="btn" href="/customer.php?id=<?= $id ?>&edit=1">Edit</a>
+                <?php endif; ?>
+                <?php if ($totalServers === 0): ?>
+                  <form method="post" action="/customer.php" style="display:inline;"
+                        onsubmit="return confirm('Permanently delete <?= htmlspecialchars(addslashes($customer['name'])) ?>? This cannot be undone.')">
+                    <input type="hidden" name="csrf"        value="<?= htmlspecialchars(csrf_token()) ?>" />
+                    <input type="hidden" name="action"      value="delete" />
+                    <input type="hidden" name="customer_id" value="<?= $id ?>" />
+                    <button class="btn" style="color:var(--danger,#f87171);" type="submit">Delete</button>
+                  </form>
+                <?php endif; ?>
+              <?php endif; ?>
             </div>
           </header>
+
+          <?php foreach ($errors as $e): ?>
+            <div class="form-alert"><?= htmlspecialchars($e) ?></div>
+          <?php endforeach; ?>
+
+          <?php if ($editMode): ?>
+          <!-- ── Edit Customer form ── -->
+          <section class="panel">
+            <header class="panel__header"><h2>Edit Customer</h2></header>
+            <div class="panel__body">
+              <form method="post" action="/customer.php">
+                <input type="hidden" name="csrf"        value="<?= htmlspecialchars(csrf_token()) ?>" />
+                <input type="hidden" name="action"      value="edit" />
+                <input type="hidden" name="customer_id" value="<?= $id ?>" />
+                <div class="node-edit-grid">
+                  <div class="form-row">
+                    <label>Company Name <span class="badge badge--danger">required</span></label>
+                    <input type="text" name="name" value="<?= htmlspecialchars($customer['name']) ?>" required />
+                  </div>
+                  <div class="form-row">
+                    <label>Account Number</label>
+                    <input type="text" name="account_number" value="<?= htmlspecialchars((string)($customer['account_number']??'')) ?>" />
+                  </div>
+                  <div class="form-row">
+                    <label>Company Type</label>
+                    <select name="company_type">
+                      <option value="">— select —</option>
+                      <?php foreach (['hosting'=>'Hosting','msp'=>'MSP','enterprise'=>'Enterprise','smb'=>'SMB','other'=>'Other'] as $v=>$l): ?>
+                        <option value="<?= $v ?>" <?= ($customer['company_type']??'')===$v?'selected':'' ?>><?= $l ?></option>
+                      <?php endforeach; ?>
+                    </select>
+                  </div>
+                  <div class="form-row">
+                    <label>Service Level</label>
+                    <select name="service_level">
+                      <option value="">— select —</option>
+                      <?php foreach (['platinum'=>'Platinum','gold'=>'Gold','silver'=>'Silver','bronze'=>'Bronze','standard'=>'Standard'] as $v=>$l): ?>
+                        <option value="<?= $v ?>" <?= ($customer['service_level']??'')===$v?'selected':'' ?>><?= $l ?></option>
+                      <?php endforeach; ?>
+                    </select>
+                  </div>
+                  <div class="form-row">
+                    <label>Account Status</label>
+                    <select name="account_status">
+                      <?php foreach (['active'=>'Active','suspended'=>'Suspended','churned'=>'Churned'] as $v=>$l): ?>
+                        <option value="<?= $v ?>" <?= ($customer['account_status']??'active')===$v?'selected':'' ?>><?= $l ?></option>
+                      <?php endforeach; ?>
+                    </select>
+                  </div>
+                  <div class="form-row">
+                    <label>MRR ($)</label>
+                    <input type="number" name="mrr_dollars" min="0"
+                           value="<?= $customer['mrr_cents'] ? (int)round((int)$customer['mrr_cents'] / 100) : '' ?>" />
+                  </div>
+                  <div class="form-row">
+                    <label>Contact Name</label>
+                    <input type="text" name="contact_name" value="<?= htmlspecialchars((string)($customer['contact_name']??'')) ?>" />
+                  </div>
+                  <div class="form-row">
+                    <label>Contact Email</label>
+                    <input type="email" name="contact_email" value="<?= htmlspecialchars((string)($customer['contact_email']??'')) ?>" />
+                  </div>
+                  <div class="form-row">
+                    <label>Contact Phone</label>
+                    <input type="text" name="contact_phone" value="<?= htmlspecialchars((string)($customer['contact_phone']??'')) ?>" />
+                  </div>
+                  <div class="form-row">
+                    <label>Address</label>
+                    <input type="text" name="address" value="<?= htmlspecialchars((string)($customer['address']??'')) ?>" />
+                  </div>
+                  <div class="form-row">
+                    <label>City</label>
+                    <input type="text" name="city" value="<?= htmlspecialchars((string)($customer['city']??'')) ?>" />
+                  </div>
+                  <div class="form-row">
+                    <label>State / Region</label>
+                    <input type="text" name="state" value="<?= htmlspecialchars((string)($customer['state']??'')) ?>" />
+                  </div>
+                  <div class="form-row">
+                    <label>Country</label>
+                    <input type="text" name="country" value="<?= htmlspecialchars((string)($customer['country']??'')) ?>" />
+                  </div>
+                  <div class="form-row">
+                    <label>Contract Start</label>
+                    <input type="date" name="contract_start" value="<?= htmlspecialchars($customer['contract_start'] ? substr($customer['contract_start'],0,10) : '') ?>" />
+                  </div>
+                  <div class="form-row">
+                    <label>Contract End</label>
+                    <input type="date" name="contract_end" value="<?= htmlspecialchars($customer['contract_end'] ? substr($customer['contract_end'],0,10) : '') ?>" />
+                  </div>
+                </div>
+                <div style="padding:0 18px 14px;">
+                  <div class="form-row" style="margin-bottom:14px;">
+                    <label>Notes</label>
+                    <textarea name="notes" rows="3"><?= htmlspecialchars((string)($customer['notes']??'')) ?></textarea>
+                  </div>
+                  <div style="display:flex;gap:8px;">
+                    <button class="btn btn--primary" type="submit">Save changes</button>
+                    <a class="btn" href="/customer.php?id=<?= $id ?>">Cancel</a>
+                  </div>
+                </div>
+              </form>
+            </div>
+          </section>
+          <?php endif; ?>
 
           <!-- KPI row -->
           <section class="kpi-grid" aria-label="Customer KPIs">

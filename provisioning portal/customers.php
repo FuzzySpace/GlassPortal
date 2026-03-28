@@ -5,8 +5,69 @@ require_once __DIR__ . '/auth/require.php';
 require_once __DIR__ . '/database/connection.php';
 require_once __DIR__ . '/auth/guard.php';
 
-$u    = current_user();
-$role = $u['role'] ?? 'operator';
+$u       = current_user();
+$role    = $u['role'] ?? 'operator';
+$canEdit = in_array($role, ['owner', 'admin'], true);
+
+$errors  = [];
+$success = null;
+
+// ---- Handle POST (add customer) ----
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && $canEdit) {
+    $csrf = (string)($_POST['csrf'] ?? '');
+    if (!csrf_verify($csrf)) {
+        $errors[] = 'Invalid CSRF token.';
+    } else {
+        $action = (string)($_POST['action'] ?? '');
+
+        if ($action === 'add') {
+            $name      = trim((string)($_POST['name']           ?? ''));
+            $ctype     = trim((string)($_POST['company_type']   ?? ''));
+            $sl        = trim((string)($_POST['service_level']  ?? ''));
+            $status    = trim((string)($_POST['account_status'] ?? 'active'));
+            $cname     = trim((string)($_POST['contact_name']   ?? ''));
+            $cemail    = trim((string)($_POST['contact_email']  ?? ''));
+            $cphone    = trim((string)($_POST['contact_phone']  ?? ''));
+            $accno     = trim((string)($_POST['account_number'] ?? ''));
+            $mrr       = (int)($_POST['mrr_dollars'] ?? 0);
+            $notes     = trim((string)($_POST['notes']          ?? ''));
+
+            $allowedStatus = ['active', 'suspended', 'churned'];
+            $allowedType   = ['hosting', 'msp', 'enterprise', 'smb', 'other', ''];
+            $allowedSL     = ['platinum', 'gold', 'silver', 'bronze', 'standard', ''];
+
+            if ($name === '')                               $errors[] = 'Customer name is required.';
+            if (!in_array($status, $allowedStatus, true))  $errors[] = 'Invalid account status.';
+            if (!in_array($ctype,  $allowedType,   true))  $errors[] = 'Invalid company type.';
+            if (!in_array($sl,     $allowedSL,     true))  $errors[] = 'Invalid service level.';
+
+            if (!$errors) {
+                $pdo->prepare("
+                    INSERT INTO customers
+                      (name, company_type, service_level, account_status,
+                       contact_name, contact_email, contact_phone,
+                       account_number, mrr_cents, notes)
+                    VALUES (?,?,?,?,?,?,?,?,?,?)
+                ")->execute([
+                    $name,
+                    $ctype   ?: null,
+                    $sl      ?: null,
+                    $status,
+                    $cname   ?: null,
+                    $cemail  ?: null,
+                    $cphone  ?: null,
+                    $accno   ?: null,
+                    $mrr > 0 ? $mrr * 100 : null,
+                    $notes   ?: null,
+                ]);
+                header('Location: /customers.php');
+                exit;
+            }
+        }
+    }
+}
+
+$addMode = ($canEdit && isset($_GET['mode']) && $_GET['mode'] === 'add');
 
 // ---- Filters ----
 $q          = trim((string)($_GET['q']       ?? ''));
@@ -92,7 +153,99 @@ $canSeeFinancial = in_array($role, ['owner','admin'], true);
               <h1>Customers</h1>
               <p class="muted">Hosting &amp; MSP client registry — accounts, SLAs, and server assignments.</p>
             </div>
+            <?php if ($canEdit): ?>
+            <div class="page-header__actions">
+              <?php if ($addMode): ?>
+                <a class="btn" href="/customers.php">Cancel</a>
+              <?php else: ?>
+                <a class="btn btn--primary" href="/customers.php?mode=add">+ Add Customer</a>
+              <?php endif; ?>
+            </div>
+            <?php endif; ?>
           </header>
+
+          <?php foreach ($errors as $e): ?>
+            <div class="form-alert"><?= htmlspecialchars($e) ?></div>
+          <?php endforeach; ?>
+
+          <?php if ($addMode): ?>
+          <!-- ── Add Customer form ── -->
+          <section class="panel">
+            <header class="panel__header"><h2>New Customer</h2></header>
+            <div class="panel__body">
+              <form method="post" action="/customers.php">
+                <input type="hidden" name="csrf"   value="<?= htmlspecialchars(csrf_token()) ?>" />
+                <input type="hidden" name="action" value="add" />
+                <div class="node-edit-grid">
+                  <div class="form-row">
+                    <label>Company Name <span class="badge badge--danger">required</span></label>
+                    <input type="text" name="name" required />
+                  </div>
+                  <div class="form-row">
+                    <label>Account Number</label>
+                    <input type="text" name="account_number" placeholder="e.g. CUST-0042" />
+                  </div>
+                  <div class="form-row">
+                    <label>Company Type</label>
+                    <select name="company_type">
+                      <option value="">— select —</option>
+                      <option value="hosting">Hosting</option>
+                      <option value="msp">MSP</option>
+                      <option value="enterprise">Enterprise</option>
+                      <option value="smb">SMB</option>
+                      <option value="other">Other</option>
+                    </select>
+                  </div>
+                  <div class="form-row">
+                    <label>Service Level</label>
+                    <select name="service_level">
+                      <option value="">— select —</option>
+                      <option value="platinum">Platinum</option>
+                      <option value="gold">Gold</option>
+                      <option value="silver">Silver</option>
+                      <option value="bronze">Bronze</option>
+                      <option value="standard">Standard</option>
+                    </select>
+                  </div>
+                  <div class="form-row">
+                    <label>Account Status</label>
+                    <select name="account_status">
+                      <option value="active">Active</option>
+                      <option value="suspended">Suspended</option>
+                      <option value="churned">Churned</option>
+                    </select>
+                  </div>
+                  <div class="form-row">
+                    <label>MRR ($)</label>
+                    <input type="number" name="mrr_dollars" min="0" placeholder="Monthly recurring revenue" />
+                  </div>
+                  <div class="form-row">
+                    <label>Contact Name</label>
+                    <input type="text" name="contact_name" />
+                  </div>
+                  <div class="form-row">
+                    <label>Contact Email</label>
+                    <input type="email" name="contact_email" />
+                  </div>
+                  <div class="form-row">
+                    <label>Contact Phone</label>
+                    <input type="text" name="contact_phone" />
+                  </div>
+                </div>
+                <div style="padding:0 18px 14px;">
+                  <div class="form-row" style="margin-bottom:14px;">
+                    <label>Notes</label>
+                    <textarea name="notes" rows="3"></textarea>
+                  </div>
+                  <div style="display:flex;gap:8px;">
+                    <button class="btn btn--primary" type="submit">Add Customer</button>
+                    <a class="btn" href="/customers.php">Cancel</a>
+                  </div>
+                </div>
+              </form>
+            </div>
+          </section>
+          <?php endif; ?>
 
           <!-- KPIs -->
           <section class="kpi-grid" aria-label="Customer KPIs">

@@ -7,9 +7,179 @@ require_once __DIR__ . '/auth/guard.php';
 
 $u    = current_user();
 $role = $u['role'] ?? 'operator';
+$canEdit = in_array($role, ['owner', 'admin'], true);
+
+$errors  = [];
+$success = null;
 
 // ---- Single DC detail view ----
 $dcId = isset($_GET['id']) && ctype_digit($_GET['id']) ? (int)$_GET['id'] : null;
+
+// ---- Handle POST actions (owner/admin only) ----
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && $canEdit) {
+    $csrf = (string)($_POST['csrf'] ?? '');
+    if (!csrf_verify($csrf)) {
+        $errors[] = 'Invalid CSRF token.';
+    } else {
+        $action       = (string)($_POST['action'] ?? '');
+        $allowedSt    = ['active', 'maintenance', 'decommissioned'];
+
+        // ---- ADD DATA CENTER ----
+        if ($action === 'add_dc') {
+            $name    = trim((string)($_POST['name']             ?? ''));
+            $code    = trim((string)($_POST['code']             ?? ''));
+            $city    = trim((string)($_POST['city']             ?? ''));
+            $state   = trim((string)($_POST['state']            ?? ''));
+            $country = trim((string)($_POST['country']          ?? ''));
+            $st      = trim((string)($_POST['status']           ?? 'active'));
+            $cname   = trim((string)($_POST['contact_name']     ?? ''));
+            $cemail  = trim((string)($_POST['contact_email']    ?? ''));
+            $cphone  = trim((string)($_POST['contact_phone']    ?? ''));
+            $power   = (int)($_POST['power_capacity_kw']        ?? 0);
+            $sqft    = (int)($_POST['total_sqft']               ?? 0);
+            $notes   = trim((string)($_POST['notes']            ?? ''));
+
+            if ($name === '')                         $errors[] = 'Data center name is required.';
+            if (!in_array($st, $allowedSt, true))    $errors[] = 'Invalid status.';
+
+            if (!$errors) {
+                $pdo->prepare("
+                    INSERT INTO datacenters
+                      (name, code, city, state, country, status,
+                       contact_name, contact_email, contact_phone,
+                       power_capacity_kw, total_sqft, notes)
+                    VALUES (?,?,?,?,?,?,?,?,?,?,?,?)
+                ")->execute([$name, $code ?: null, $city ?: null, $state ?: null,
+                             $country ?: null, $st, $cname ?: null, $cemail ?: null,
+                             $cphone ?: null, $power ?: null, $sqft ?: null, $notes ?: null]);
+                $newId = (int)$pdo->lastInsertId();
+                header("Location: /datacenters.php?id={$newId}");
+                exit;
+            }
+
+        // ---- EDIT DATA CENTER ----
+        } elseif ($action === 'edit_dc' && ctype_digit($_POST['dc_id'] ?? '')) {
+            $tid     = (int)$_POST['dc_id'];
+            $dcId    = $tid;
+            $name    = trim((string)($_POST['name']             ?? ''));
+            $code    = trim((string)($_POST['code']             ?? ''));
+            $city    = trim((string)($_POST['city']             ?? ''));
+            $state   = trim((string)($_POST['state']            ?? ''));
+            $country = trim((string)($_POST['country']          ?? ''));
+            $st      = trim((string)($_POST['status']           ?? 'active'));
+            $cname   = trim((string)($_POST['contact_name']     ?? ''));
+            $cemail  = trim((string)($_POST['contact_email']    ?? ''));
+            $cphone  = trim((string)($_POST['contact_phone']    ?? ''));
+            $power   = (int)($_POST['power_capacity_kw']        ?? 0);
+            $sqft    = (int)($_POST['total_sqft']               ?? 0);
+            $notes   = trim((string)($_POST['notes']            ?? ''));
+
+            if ($name === '')                         $errors[] = 'Data center name is required.';
+            if (!in_array($st, $allowedSt, true))    $errors[] = 'Invalid status.';
+
+            if (!$errors) {
+                $pdo->prepare("
+                    UPDATE datacenters
+                       SET name=?, code=?, city=?, state=?, country=?, status=?,
+                           contact_name=?, contact_email=?, contact_phone=?,
+                           power_capacity_kw=?, total_sqft=?, notes=?
+                     WHERE id=?
+                ")->execute([$name, $code ?: null, $city ?: null, $state ?: null,
+                             $country ?: null, $st, $cname ?: null, $cemail ?: null,
+                             $cphone ?: null, $power ?: null, $sqft ?: null,
+                             $notes ?: null, $tid]);
+                header("Location: /datacenters.php?id={$tid}");
+                exit;
+            }
+
+        // ---- DELETE DATA CENTER ----
+        } elseif ($action === 'delete_dc' && ctype_digit($_POST['dc_id'] ?? '')) {
+            $tid  = (int)$_POST['dc_id'];
+            $chk  = $pdo->prepare("SELECT COUNT(*) FROM racks WHERE datacenter_id = ?");
+            $chk->execute([$tid]);
+            $cnt  = (int)$chk->fetchColumn();
+            if ($cnt > 0) {
+                $errors[] = "Cannot delete: {$cnt} rack(s) still in this DC. Remove all racks first.";
+                $dcId = $tid;
+            } else {
+                $pdo->prepare("DELETE FROM datacenters WHERE id = ?")->execute([$tid]);
+                header('Location: /datacenters.php');
+                exit;
+            }
+
+        // ---- ADD RACK ----
+        } elseif ($action === 'add_rack' && ctype_digit($_POST['dc_id'] ?? '')) {
+            $dcId    = (int)$_POST['dc_id'];
+            $name    = trim((string)($_POST['name']         ?? ''));
+            $row     = trim((string)($_POST['row_label']    ?? ''));
+            $pos     = trim((string)($_POST['position']     ?? ''));
+            $units   = max(1, min(100, (int)($_POST['total_units'] ?? 42)));
+            $amps    = (int)($_POST['power_amps']           ?? 0);
+            $rst     = trim((string)($_POST['status']       ?? 'active'));
+            $notes   = trim((string)($_POST['notes']        ?? ''));
+
+            if ($name === '')                          $errors[] = 'Rack name is required.';
+            if (!in_array($rst, $allowedSt, true))    $errors[] = 'Invalid status.';
+
+            if (!$errors) {
+                $pdo->prepare("
+                    INSERT INTO racks
+                      (datacenter_id, name, row_label, position, total_units, power_amps, status, notes)
+                    VALUES (?,?,?,?,?,?,?,?)
+                ")->execute([$dcId, $name, $row ?: null, $pos ?: null,
+                             $units, $amps ?: null, $rst, $notes ?: null]);
+                header("Location: /datacenters.php?id={$dcId}");
+                exit;
+            }
+
+        // ---- EDIT RACK ----
+        } elseif ($action === 'edit_rack' && ctype_digit($_POST['rack_id'] ?? '')) {
+            $rid     = (int)$_POST['rack_id'];
+            $dcId    = ctype_digit($_POST['dc_id'] ?? '') ? (int)$_POST['dc_id'] : $dcId;
+            $name    = trim((string)($_POST['name']         ?? ''));
+            $row     = trim((string)($_POST['row_label']    ?? ''));
+            $pos     = trim((string)($_POST['position']     ?? ''));
+            $units   = max(1, min(100, (int)($_POST['total_units'] ?? 42)));
+            $amps    = (int)($_POST['power_amps']           ?? 0);
+            $rst     = trim((string)($_POST['status']       ?? 'active'));
+            $notes   = trim((string)($_POST['notes']        ?? ''));
+
+            if ($name === '')                          $errors[] = 'Rack name is required.';
+            if (!in_array($rst, $allowedSt, true))    $errors[] = 'Invalid status.';
+
+            if (!$errors) {
+                $pdo->prepare("
+                    UPDATE racks
+                       SET name=?, row_label=?, position=?, total_units=?, power_amps=?, status=?, notes=?
+                     WHERE id=?
+                ")->execute([$name, $row ?: null, $pos ?: null,
+                             $units, $amps ?: null, $rst, $notes ?: null, $rid]);
+                header("Location: /datacenters.php?id={$dcId}");
+                exit;
+            }
+
+        // ---- DELETE RACK ----
+        } elseif ($action === 'delete_rack' && ctype_digit($_POST['rack_id'] ?? '')) {
+            $rid   = (int)$_POST['rack_id'];
+            $dcId  = ctype_digit($_POST['dc_id'] ?? '') ? (int)$_POST['dc_id'] : $dcId;
+            $chk   = $pdo->prepare("SELECT COUNT(*) FROM nodes WHERE rack_id = ?");
+            $chk->execute([$rid]);
+            $cnt   = (int)$chk->fetchColumn();
+            if ($cnt > 0) {
+                $errors[] = "Cannot delete: {$cnt} server(s) still in this rack. Reassign them first.";
+            } else {
+                $pdo->prepare("DELETE FROM racks WHERE id = ?")->execute([$rid]);
+                header("Location: /datacenters.php?id={$dcId}");
+                exit;
+            }
+        }
+    }
+}
+
+$addMode     = ($canEdit && isset($_GET['mode']) && $_GET['mode'] === 'add');
+$editMode    = ($canEdit && isset($_GET['edit_dc']));
+$addRackMode = ($canEdit && isset($_GET['add_rack']));
+$editRackId  = ($canEdit && ctype_digit($_GET['edit_rack'] ?? '')) ? (int)$_GET['edit_rack'] : 0;
 
 // ---- Load all DCs with stats ----
 $dcListStmt = $pdo->query("
@@ -122,8 +292,103 @@ function status_badge_class(string $s): string {
               <div class="page-header__actions">
                 <a class="btn" href="/rack.php?dc=<?= $dcId ?>">Rack View</a>
                 <a class="btn" href="/hardware.php?dc=<?= $dcId ?>">Assets</a>
+                <?php if ($canEdit): ?>
+                  <?php if ($editMode): ?>
+                    <a class="btn" href="/datacenters.php?id=<?= $dcId ?>">Cancel Edit</a>
+                  <?php else: ?>
+                    <a class="btn" href="/datacenters.php?id=<?= $dcId ?>&edit_dc=1">Edit DC</a>
+                  <?php endif; ?>
+                  <?php $dcNodeCount = count($dcNodes); $dcRackCount = count($racks); ?>
+                  <?php if ($dcRackCount === 0 && $dcNodeCount === 0): ?>
+                    <form method="post" action="/datacenters.php" style="display:inline;"
+                          onsubmit="return confirm('Permanently delete <?= htmlspecialchars(addslashes($dc['name'])) ?>? This cannot be undone.')">
+                      <input type="hidden" name="csrf"  value="<?= htmlspecialchars(csrf_token()) ?>" />
+                      <input type="hidden" name="action" value="delete_dc" />
+                      <input type="hidden" name="dc_id"  value="<?= $dcId ?>" />
+                      <button class="btn" style="color:var(--danger,#f87171);" type="submit">Delete DC</button>
+                    </form>
+                  <?php endif; ?>
+                <?php endif; ?>
               </div>
             </header>
+
+            <?php foreach ($errors as $e): ?>
+              <div class="form-alert"><?= htmlspecialchars($e) ?></div>
+            <?php endforeach; ?>
+
+            <?php if ($editMode): ?>
+            <!-- ── Edit DC form ── -->
+            <section class="panel">
+              <header class="panel__header"><h2>Edit Data Center</h2></header>
+              <div class="panel__body">
+                <form method="post" action="/datacenters.php">
+                  <input type="hidden" name="csrf"   value="<?= htmlspecialchars(csrf_token()) ?>" />
+                  <input type="hidden" name="action" value="edit_dc" />
+                  <input type="hidden" name="dc_id"  value="<?= $dcId ?>" />
+                  <div class="node-edit-grid">
+                    <div class="form-row">
+                      <label>Name <span class="badge badge--danger">required</span></label>
+                      <input type="text" name="name" value="<?= htmlspecialchars($dc['name']) ?>" required />
+                    </div>
+                    <div class="form-row">
+                      <label>Code <span class="muted small">(e.g. NYC1)</span></label>
+                      <input type="text" name="code" value="<?= htmlspecialchars((string)($dc['code']??'')) ?>" maxlength="20" />
+                    </div>
+                    <div class="form-row">
+                      <label>City</label>
+                      <input type="text" name="city" value="<?= htmlspecialchars((string)($dc['city']??'')) ?>" />
+                    </div>
+                    <div class="form-row">
+                      <label>State / Region</label>
+                      <input type="text" name="state" value="<?= htmlspecialchars((string)($dc['state']??'')) ?>" />
+                    </div>
+                    <div class="form-row">
+                      <label>Country</label>
+                      <input type="text" name="country" value="<?= htmlspecialchars((string)($dc['country']??'')) ?>" />
+                    </div>
+                    <div class="form-row">
+                      <label>Status</label>
+                      <select name="status">
+                        <?php foreach (['active'=>'Active','maintenance'=>'Maintenance','decommissioned'=>'Decommissioned'] as $v=>$l): ?>
+                          <option value="<?= $v ?>" <?= ($dc['status']??'active')===$v?'selected':'' ?>><?= $l ?></option>
+                        <?php endforeach; ?>
+                      </select>
+                    </div>
+                    <div class="form-row">
+                      <label>Contact Name</label>
+                      <input type="text" name="contact_name" value="<?= htmlspecialchars((string)($dc['contact_name']??'')) ?>" />
+                    </div>
+                    <div class="form-row">
+                      <label>Contact Email</label>
+                      <input type="email" name="contact_email" value="<?= htmlspecialchars((string)($dc['contact_email']??'')) ?>" />
+                    </div>
+                    <div class="form-row">
+                      <label>Contact Phone</label>
+                      <input type="text" name="contact_phone" value="<?= htmlspecialchars((string)($dc['contact_phone']??'')) ?>" />
+                    </div>
+                    <div class="form-row">
+                      <label>Power Capacity (kW)</label>
+                      <input type="number" name="power_capacity_kw" value="<?= (int)($dc['power_capacity_kw']??0) ?: '' ?>" min="0" />
+                    </div>
+                    <div class="form-row">
+                      <label>Floor Space (sqft)</label>
+                      <input type="number" name="total_sqft" value="<?= (int)($dc['total_sqft']??0) ?: '' ?>" min="0" />
+                    </div>
+                  </div>
+                  <div style="padding:0 18px 14px;">
+                    <div class="form-row" style="margin-bottom:14px;">
+                      <label>Notes</label>
+                      <textarea name="notes" rows="3"><?= htmlspecialchars((string)($dc['notes']??'')) ?></textarea>
+                    </div>
+                    <div style="display:flex;gap:8px;">
+                      <button class="btn btn--primary" type="submit">Save changes</button>
+                      <a class="btn" href="/datacenters.php?id=<?= $dcId ?>">Cancel</a>
+                    </div>
+                  </div>
+                </form>
+              </div>
+            </section>
+            <?php endif; ?>
 
             <!-- KPI row -->
             <section class="kpi-grid" aria-label="DC KPIs">
@@ -208,31 +473,179 @@ function status_badge_class(string $s): string {
             <section class="panel">
               <header class="panel__header">
                 <h2>Racks</h2>
-                <a class="link" href="/rack.php?dc=<?= $dcId ?>">Rack View →</a>
+                <div style="display:flex;gap:8px;align-items:center;">
+                  <a class="link" href="/rack.php?dc=<?= $dcId ?>">Rack View →</a>
+                  <?php if ($canEdit): ?>
+                    <?php if ($addRackMode): ?>
+                      <a class="btn" href="/datacenters.php?id=<?= $dcId ?>">Cancel</a>
+                    <?php else: ?>
+                      <a class="btn btn--primary" style="padding:4px 12px;font-size:12px;"
+                         href="/datacenters.php?id=<?= $dcId ?>&add_rack=1">+ Add Rack</a>
+                    <?php endif; ?>
+                  <?php endif; ?>
+                </div>
               </header>
               <div class="panel__body">
-                <?php if (!$racks): ?>
-                  <p class="muted">No racks configured in this data center.</p>
-                <?php else: ?>
-                  <div class="dc-rack-grid">
-                    <?php foreach ($racks as $r): ?>
-                      <a class="rack-summary-card" href="/rack.php?id=<?= (int)$r['id'] ?>">
-                        <div class="rack-summary-card__name"><?= htmlspecialchars($r['name']) ?></div>
-                        <?php if ($r['row_label']): ?>
-                          <div class="muted small">Row <?= htmlspecialchars($r['row_label']) ?></div>
-                        <?php endif; ?>
-                        <div class="rack-summary-card__stats">
-                          <span><?= (int)$r['node_count'] ?> servers</span>
-                          <span><?= (int)($r['used_units'] ?? 0) ?>/<?= (int)$r['total_units'] ?>U</span>
-                          <?php if ((int)$r['down_count'] > 0): ?>
-                            <span class="badge badge--danger"><?= (int)$r['down_count'] ?> down</span>
-                          <?php elseif ((int)$r['healthy'] > 0): ?>
-                            <span class="badge badge--success"><?= (int)$r['healthy'] ?> ok</span>
-                          <?php endif; ?>
-                        </div>
-                      </a>
-                    <?php endforeach; ?>
+
+                <?php if ($addRackMode): ?>
+                <!-- ── Add Rack Form ── -->
+                <form method="post" action="/datacenters.php" style="padding:0 0 18px;">
+                  <input type="hidden" name="csrf"      value="<?= htmlspecialchars(csrf_token()) ?>" />
+                  <input type="hidden" name="action"    value="add_rack" />
+                  <input type="hidden" name="dc_id"     value="<?= $dcId ?>" />
+                  <div class="node-edit-grid">
+                    <div class="form-row">
+                      <label>Rack Name <span class="badge badge--danger">required</span></label>
+                      <input type="text" name="name" placeholder="e.g. R01 or Rack-A-01" required />
+                    </div>
+                    <div class="form-row">
+                      <label>Row Label</label>
+                      <input type="text" name="row_label" placeholder="e.g. A" maxlength="50" />
+                    </div>
+                    <div class="form-row">
+                      <label>Position</label>
+                      <input type="text" name="position" placeholder="e.g. A-03" maxlength="50" />
+                    </div>
+                    <div class="form-row">
+                      <label>Total Units</label>
+                      <input type="number" name="total_units" value="42" min="1" max="100" />
+                    </div>
+                    <div class="form-row">
+                      <label>Power (Amps)</label>
+                      <input type="number" name="power_amps" placeholder="e.g. 20" min="0" max="255" />
+                    </div>
+                    <div class="form-row">
+                      <label>Status</label>
+                      <select name="status">
+                        <option value="active">Active</option>
+                        <option value="maintenance">Maintenance</option>
+                        <option value="decommissioned">Decommissioned</option>
+                      </select>
+                    </div>
                   </div>
+                  <div style="padding:0 0 0 0;">
+                    <div class="form-row" style="margin-bottom:10px;">
+                      <label>Notes</label>
+                      <input type="text" name="notes" placeholder="Optional notes" />
+                    </div>
+                    <div style="display:flex;gap:8px;">
+                      <button class="btn btn--primary" type="submit">Add Rack</button>
+                      <a class="btn" href="/datacenters.php?id=<?= $dcId ?>">Cancel</a>
+                    </div>
+                  </div>
+                </form>
+                <?php endif; ?>
+
+                <?php if (!$racks): ?>
+                  <p class="muted">No racks configured in this data center.<?= $canEdit ? ' Use "+ Add Rack" above to create one.' : '' ?></p>
+                <?php else: ?>
+
+                  <!-- Rack table with inline edit -->
+                  <table class="table">
+                    <thead>
+                      <tr>
+                        <th>Rack</th>
+                        <th>Row</th>
+                        <th>Units</th>
+                        <th>Used</th>
+                        <th>Power</th>
+                        <th>Servers</th>
+                        <th>Status</th>
+                        <?php if ($canEdit): ?><th>Actions</th><?php endif; ?>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <?php foreach ($racks as $r): ?>
+                        <tr>
+                          <td>
+                            <a class="link" href="/rack.php?id=<?= (int)$r['id'] ?>"><?= htmlspecialchars($r['name']) ?></a>
+                            <?php if ($r['position']): ?><br><span class="muted small"><?= htmlspecialchars($r['position']) ?></span><?php endif; ?>
+                          </td>
+                          <td class="muted small"><?= $r['row_label'] ? htmlspecialchars($r['row_label']) : '—' ?></td>
+                          <td><?= (int)$r['total_units'] ?>U</td>
+                          <td><?= (int)($r['used_units']??0) ?>U</td>
+                          <td class="muted small"><?= $r['power_amps'] ? (int)$r['power_amps'].'A' : '—' ?></td>
+                          <td><?= (int)$r['node_count'] ?></td>
+                          <td><span class="<?= status_badge_class((string)($r['status']??'active')) ?>"><?= htmlspecialchars($r['status']??'active') ?></span></td>
+                          <?php if ($canEdit): ?>
+                            <td style="white-space:nowrap;">
+                              <?php if ($editRackId === (int)$r['id']): ?>
+                                <a class="btn" style="padding:4px 10px;font-size:12px;"
+                                   href="/datacenters.php?id=<?= $dcId ?>">Cancel</a>
+                              <?php else: ?>
+                                <a class="btn" style="padding:4px 10px;font-size:12px;"
+                                   href="/datacenters.php?id=<?= $dcId ?>&edit_rack=<?= (int)$r['id'] ?>">Edit</a>
+                              <?php endif; ?>
+                              <?php if ((int)$r['node_count'] === 0): ?>
+                                <form method="post" action="/datacenters.php" style="display:inline;"
+                                      onsubmit="return confirm('Delete rack <?= htmlspecialchars(addslashes($r['name'])) ?>?')">
+                                  <input type="hidden" name="csrf"     value="<?= htmlspecialchars(csrf_token()) ?>" />
+                                  <input type="hidden" name="action"   value="delete_rack" />
+                                  <input type="hidden" name="rack_id"  value="<?= (int)$r['id'] ?>" />
+                                  <input type="hidden" name="dc_id"    value="<?= $dcId ?>" />
+                                  <button class="btn" style="padding:4px 10px;font-size:12px;color:var(--danger,#f87171);" type="submit">Del</button>
+                                </form>
+                              <?php else: ?>
+                                <span class="muted small" title="Remove servers first">Del</span>
+                              <?php endif; ?>
+                            </td>
+                          <?php endif; ?>
+                        </tr>
+                        <?php if ($canEdit && $editRackId === (int)$r['id']): ?>
+                        <tr class="edit-row-expanded">
+                          <td colspan="<?= $canEdit ? 8 : 7 ?>">
+                            <form method="post" action="/datacenters.php">
+                              <input type="hidden" name="csrf"     value="<?= htmlspecialchars(csrf_token()) ?>" />
+                              <input type="hidden" name="action"   value="edit_rack" />
+                              <input type="hidden" name="rack_id"  value="<?= (int)$r['id'] ?>" />
+                              <input type="hidden" name="dc_id"    value="<?= $dcId ?>" />
+                              <div class="node-edit-grid">
+                                <div class="form-row">
+                                  <label>Name <span class="badge badge--danger">required</span></label>
+                                  <input type="text" name="name" value="<?= htmlspecialchars($r['name']) ?>" required />
+                                </div>
+                                <div class="form-row">
+                                  <label>Row Label</label>
+                                  <input type="text" name="row_label" value="<?= htmlspecialchars((string)($r['row_label']??'')) ?>" />
+                                </div>
+                                <div class="form-row">
+                                  <label>Position</label>
+                                  <input type="text" name="position" value="<?= htmlspecialchars((string)($r['position']??'')) ?>" />
+                                </div>
+                                <div class="form-row">
+                                  <label>Total Units</label>
+                                  <input type="number" name="total_units" value="<?= (int)($r['total_units']??42) ?>" min="1" max="100" />
+                                </div>
+                                <div class="form-row">
+                                  <label>Power (Amps)</label>
+                                  <input type="number" name="power_amps" value="<?= (int)($r['power_amps']??0) ?: '' ?>" min="0" max="255" />
+                                </div>
+                                <div class="form-row">
+                                  <label>Status</label>
+                                  <select name="status">
+                                    <?php foreach (['active'=>'Active','maintenance'=>'Maintenance','decommissioned'=>'Decommissioned'] as $v=>$l): ?>
+                                      <option value="<?= $v ?>" <?= ($r['status']??'active')===$v?'selected':'' ?>><?= $l ?></option>
+                                    <?php endforeach; ?>
+                                  </select>
+                                </div>
+                              </div>
+                              <div style="padding:0 0 10px;">
+                                <div class="form-row" style="margin-bottom:10px;">
+                                  <label>Notes</label>
+                                  <input type="text" name="notes" value="<?= htmlspecialchars((string)($r['notes']??'')) ?>" />
+                                </div>
+                                <div style="display:flex;gap:8px;">
+                                  <button class="btn btn--primary" type="submit">Save</button>
+                                  <a class="btn" href="/datacenters.php?id=<?= $dcId ?>">Cancel</a>
+                                </div>
+                              </div>
+                            </form>
+                          </td>
+                        </tr>
+                        <?php endif; ?>
+                      <?php endforeach; ?>
+                    </tbody>
+                  </table>
                 <?php endif; ?>
               </div>
             </section>
@@ -300,7 +713,93 @@ function status_badge_class(string $s): string {
                 <h1>Data Centers</h1>
                 <p class="muted">Physical facilities hosting Glasshouse infrastructure.</p>
               </div>
+              <?php if ($canEdit): ?>
+              <div class="page-header__actions">
+                <?php if ($addMode): ?>
+                  <a class="btn" href="/datacenters.php">Cancel</a>
+                <?php else: ?>
+                  <a class="btn btn--primary" href="/datacenters.php?mode=add">+ Add Data Center</a>
+                <?php endif; ?>
+              </div>
+              <?php endif; ?>
             </header>
+
+            <?php foreach ($errors as $e): ?>
+              <div class="form-alert"><?= htmlspecialchars($e) ?></div>
+            <?php endforeach; ?>
+
+            <?php if ($addMode): ?>
+            <!-- ── Add DC form ── -->
+            <section class="panel">
+              <header class="panel__header"><h2>New Data Center</h2></header>
+              <div class="panel__body">
+                <form method="post" action="/datacenters.php">
+                  <input type="hidden" name="csrf"   value="<?= htmlspecialchars(csrf_token()) ?>" />
+                  <input type="hidden" name="action" value="add_dc" />
+                  <div class="node-edit-grid">
+                    <div class="form-row">
+                      <label>Name <span class="badge badge--danger">required</span></label>
+                      <input type="text" name="name" required />
+                    </div>
+                    <div class="form-row">
+                      <label>Code <span class="muted small">(e.g. NYC1)</span></label>
+                      <input type="text" name="code" maxlength="20" />
+                    </div>
+                    <div class="form-row">
+                      <label>City</label>
+                      <input type="text" name="city" />
+                    </div>
+                    <div class="form-row">
+                      <label>State / Region</label>
+                      <input type="text" name="state" />
+                    </div>
+                    <div class="form-row">
+                      <label>Country</label>
+                      <input type="text" name="country" />
+                    </div>
+                    <div class="form-row">
+                      <label>Status</label>
+                      <select name="status">
+                        <option value="active">Active</option>
+                        <option value="maintenance">Maintenance</option>
+                        <option value="decommissioned">Decommissioned</option>
+                      </select>
+                    </div>
+                    <div class="form-row">
+                      <label>Contact Name</label>
+                      <input type="text" name="contact_name" />
+                    </div>
+                    <div class="form-row">
+                      <label>Contact Email</label>
+                      <input type="email" name="contact_email" />
+                    </div>
+                    <div class="form-row">
+                      <label>Contact Phone</label>
+                      <input type="text" name="contact_phone" />
+                    </div>
+                    <div class="form-row">
+                      <label>Power Capacity (kW)</label>
+                      <input type="number" name="power_capacity_kw" min="0" />
+                    </div>
+                    <div class="form-row">
+                      <label>Floor Space (sqft)</label>
+                      <input type="number" name="total_sqft" min="0" />
+                    </div>
+                  </div>
+                  <div style="padding:0 18px 14px;">
+                    <div class="form-row" style="margin-bottom:14px;">
+                      <label>Notes</label>
+                      <textarea name="notes" rows="3"></textarea>
+                    </div>
+                    <div style="display:flex;gap:8px;">
+                      <button class="btn btn--primary" type="submit">Add Data Center</button>
+                      <a class="btn" href="/datacenters.php">Cancel</a>
+                    </div>
+                  </div>
+                </form>
+              </div>
+            </section>
+            <?php endif; ?>
 
             <!-- KPIs -->
             <section class="kpi-grid" aria-label="DC KPIs">
@@ -378,8 +877,22 @@ function status_badge_class(string $s): string {
                           <td><?= (int)$d['healthy'] ?></td>
                           <td><?= (int)$d['down_count'] > 0 ? '<span class="badge badge--danger">'.(int)$d['down_count'].'</span>' : '0' ?></td>
                           <td><span class="<?= status_badge_class((string)($d['status']??'active')) ?>"><?= htmlspecialchars($d['status']??'active') ?></span></td>
-                          <td>
+                          <td style="white-space:nowrap;">
                             <a class="btn" style="padding:4px 10px;font-size:12px;" href="/datacenters.php?id=<?= (int)$d['id'] ?>">View</a>
+                            <?php if ($canEdit): ?>
+                              <a class="btn" style="padding:4px 10px;font-size:12px;" href="/datacenters.php?id=<?= (int)$d['id'] ?>&edit_dc=1">Edit</a>
+                              <?php if ((int)$d['rack_count'] === 0 && (int)$d['node_count'] === 0): ?>
+                                <form method="post" action="/datacenters.php" style="display:inline;"
+                                      onsubmit="return confirm('Permanently delete <?= htmlspecialchars(addslashes($d['name'])) ?>?')">
+                                  <input type="hidden" name="csrf"   value="<?= htmlspecialchars(csrf_token()) ?>" />
+                                  <input type="hidden" name="action" value="delete_dc" />
+                                  <input type="hidden" name="dc_id"  value="<?= (int)$d['id'] ?>" />
+                                  <button class="btn" style="padding:4px 10px;font-size:12px;color:var(--danger,#f87171);" type="submit">Del</button>
+                                </form>
+                              <?php else: ?>
+                                <span class="muted small" title="Remove racks/servers first">Del</span>
+                              <?php endif; ?>
+                            <?php endif; ?>
                           </td>
                         </tr>
                       <?php endforeach; ?>
