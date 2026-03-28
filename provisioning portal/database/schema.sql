@@ -308,13 +308,10 @@ CREATE TABLE IF NOT EXISTS provisioning_tasks (
     is_required   TINYINT(1) UNSIGNED NOT NULL DEFAULT 1,
     script_id     INT UNSIGNED NULL,
     created_at    DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at    DATETIME NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP,
 
-    CONSTRAINT fk_tasks_script 
-        FOREIGN KEY (script_id) 
-        REFERENCES ansible_scripts(id) 
-        ON DELETE SET NULL
-        ON UPDATE CASCADE
+    -- Optional helpful index
+    KEY idx_provisioning_tasks_script_id (script_id)
+
 ) ENGINE=InnoDB 
   DEFAULT CHARSET=utf8mb4 
   COLLATE=utf8mb4_unicode_ci;
