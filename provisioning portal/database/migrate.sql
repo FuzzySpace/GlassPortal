@@ -26,13 +26,31 @@ USE provisioning_portal;
 -- below are sufficient to restore portal functionality.
 
 ALTER TABLE nodes
-    ADD COLUMN IF NOT EXISTS customer_id INT UNSIGNED NULL AFTER role;
+    ADD COLUMN IF NOT EXISTS customer_id INT UNSIGNED NULL;
 
 ALTER TABLE nodes
-    ADD COLUMN IF NOT EXISTS rack_unit_start SMALLINT UNSIGNED NULL AFTER rack_id;
+    ADD COLUMN IF NOT EXISTS rack_unit_start SMALLINT UNSIGNED NULL;
 
 ALTER TABLE nodes
-    ADD COLUMN IF NOT EXISTS rack_unit_size TINYINT UNSIGNED NOT NULL DEFAULT 1 AFTER rack_unit_start;
+    ADD COLUMN IF NOT EXISTS rack_unit_size  TINYINT UNSIGNED NOT NULL DEFAULT 1 AFTER rack_unit_start;
+
+ALTER TABLE nodes
+    ADD COLUMN IF NOT EXISTS site            VARCHAR(50)  NULL;
+
+ALTER TABLE nodes
+    ADD COLUMN IF NOT EXISTS last_seen_at    DATETIME     NULL;
+
+ALTER TABLE nodes
+    ADD COLUMN IF NOT EXISTS provider        VARCHAR(50)  NULL;
+
+ALTER TABLE nodes
+    ADD COLUMN IF NOT EXISTS mgmt_ip         VARCHAR(45)  NULL;
+
+ALTER TABLE nodes
+    ADD COLUMN IF NOT EXISTS notes           TEXT         NULL;
+
+ALTER TABLE nodes
+    ADD COLUMN IF NOT EXISTS updated_at      DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP;
 
 -- ============================================================
 --  automations: add schedule_cron
@@ -46,13 +64,13 @@ ALTER TABLE automations
 -- ============================================================
 
 ALTER TABLE automation_runs
-    ADD COLUMN IF NOT EXISTS locked_by            VARCHAR(100) NULL AFTER meta;
+    ADD COLUMN IF NOT EXISTS locked_by            VARCHAR(100) NULL;
 
 ALTER TABLE automation_runs
     ADD COLUMN IF NOT EXISTS locked_at            DATETIME NULL AFTER locked_by;
 
 ALTER TABLE automation_runs
-    ADD COLUMN IF NOT EXISTS initiated_via        VARCHAR(30) NULL AFTER duration_ms;
+    ADD COLUMN IF NOT EXISTS initiated_via        VARCHAR(30) NULL;
 
 ALTER TABLE automation_runs
     ADD COLUMN IF NOT EXISTS initiated_by_user_id INT UNSIGNED NULL AFTER initiated_via;
@@ -92,6 +110,34 @@ ALTER TABLE ansible_scripts
     ADD COLUMN IF NOT EXISTS updated_at         DATETIME          NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP AFTER created_at;
 
 -- ============================================================
+--  customers: create standalone table if it does not exist
+--  (must exist before the FK below is added)
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS customers (
+    id              INT UNSIGNED  NOT NULL AUTO_INCREMENT,
+    name            VARCHAR(150)  NOT NULL,
+    account_status  VARCHAR(20)   NOT NULL DEFAULT 'active',
+    service_level   VARCHAR(50)   NULL,
+    company_type    VARCHAR(50)   NULL,
+    contact_name    VARCHAR(100)  NULL,
+    contact_email   VARCHAR(150)  NULL,
+    contact_phone   VARCHAR(50)   NULL,
+    address         TEXT          NULL,
+    city            VARCHAR(100)  NULL,
+    state           VARCHAR(100)  NULL,
+    country         VARCHAR(100)  NULL,
+    account_number  VARCHAR(50)   NULL,
+    mrr_cents       INT UNSIGNED  NULL,
+    contract_start  DATE          NULL,
+    contract_end    DATE          NULL,
+    notes           TEXT          NULL,
+    created_at      DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at      DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ============================================================
 --  Add missing FK constraints (ignore errors if they exist)
 -- ============================================================
 
@@ -111,6 +157,103 @@ ALTER TABLE ansible_scripts
         FOREIGN KEY (created_by_user_id) REFERENCES users(id) ON DELETE SET NULL;
 
 SET FOREIGN_KEY_CHECKS = 1;
+
+-- ============================================================
+--  Bridge: datacenters VIEW over sites
+--
+--  The live server uses a 'sites' table where the repo codebase
+--  references 'datacenters'. We rename any existing TABLE to
+--  datacenters_legacy (preserving its data) then create a
+--  compatibility VIEW so all existing PHP continues to work.
+-- ============================================================
+
+DROP PROCEDURE IF EXISTS sp_bridge_datacenters;
+
+DELIMITER //
+CREATE PROCEDURE sp_bridge_datacenters()
+BEGIN
+    DECLARE v_type VARCHAR(20) DEFAULT NULL;
+    SELECT TABLE_TYPE INTO v_type
+    FROM information_schema.TABLES
+    WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'datacenters';
+
+    IF v_type = 'BASE TABLE' THEN
+        -- Preserve data; rename the table so the VIEW name is free
+        DROP TABLE IF EXISTS datacenters_legacy;
+        RENAME TABLE datacenters TO datacenters_legacy;
+    ELSEIF v_type = 'VIEW' THEN
+        DROP VIEW IF EXISTS datacenters;
+    END IF;
+END //
+DELIMITER ;
+
+CALL sp_bridge_datacenters();
+DROP PROCEDURE IF EXISTS sp_bridge_datacenters;
+
+-- Map sites -> datacenters (columns needed by dashboard.php)
+CREATE OR REPLACE VIEW datacenters AS
+SELECT
+    id,
+    name,
+    NULL        AS code,
+    NULL        AS city,
+    NULL        AS country,
+    NULL        AS status,
+    NULL        AS notes,
+    created_at,
+    updated_at
+FROM sites;
+
+-- ============================================================
+--  nodes / racks: add virtual datacenter_id shim
+--
+--  If the live nodes/racks tables have a site_id FK column,
+--  we expose datacenter_id as a virtual alias so the PHP JOINs
+--  (ON n.datacenter_id = d.id) resolve correctly against the
+--  datacenters VIEW (which maps sites.id -> datacenters.id).
+-- ============================================================
+
+DROP PROCEDURE IF EXISTS sp_add_virtual_dc_id;
+
+DELIMITER //
+CREATE PROCEDURE sp_add_virtual_dc_id()
+BEGIN
+    DECLARE v_has_site_id INT DEFAULT 0;
+
+    -- nodes
+    SELECT COUNT(*) INTO v_has_site_id
+    FROM information_schema.COLUMNS
+    WHERE TABLE_SCHEMA = DATABASE()
+      AND TABLE_NAME   = 'nodes'
+      AND COLUMN_NAME  = 'site_id';
+
+    IF v_has_site_id > 0 THEN
+        SET @sql = 'ALTER TABLE nodes ADD COLUMN IF NOT EXISTS '
+                   'datacenter_id BIGINT UNSIGNED GENERATED ALWAYS AS (site_id) VIRTUAL';
+        PREPARE stmt FROM @sql;
+        EXECUTE stmt;
+        DEALLOCATE PREPARE stmt;
+    END IF;
+
+    -- racks
+    SELECT COUNT(*) INTO v_has_site_id
+    FROM information_schema.COLUMNS
+    WHERE TABLE_SCHEMA = DATABASE()
+      AND TABLE_NAME   = 'racks'
+      AND COLUMN_NAME  = 'site_id';
+
+    IF v_has_site_id > 0 THEN
+        SET @sql = 'ALTER TABLE racks ADD COLUMN IF NOT EXISTS '
+                   'datacenter_id BIGINT UNSIGNED GENERATED ALWAYS AS (site_id) VIRTUAL';
+        PREPARE stmt FROM @sql;
+        EXECUTE stmt;
+        DEALLOCATE PREPARE stmt;
+    END IF;
+END //
+DELIMITER ;
+
+CALL sp_add_virtual_dc_id();
+DROP PROCEDURE IF EXISTS sp_add_virtual_dc_id;
 
 -- ============================================================
 --  Verify: show all tables and row counts
