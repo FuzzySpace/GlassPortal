@@ -300,17 +300,24 @@ CREATE TABLE IF NOT EXISTS ansible_scripts (
 -- ============================================================
 
 CREATE TABLE IF NOT EXISTS provisioning_tasks (
-    id          INT UNSIGNED     NOT NULL AUTO_INCREMENT PRIMARY KEY,
-    category    VARCHAR(50)      NOT NULL,
-    step_order  TINYINT UNSIGNED NOT NULL,
-    name        VARCHAR(150)     NOT NULL,
-    description TEXT                 NULL,
-    is_required TINYINT UNSIGNED NOT NULL DEFAULT 1,
-    script_id   INT UNSIGNED         NULL,
-    created_at  DATETIME         NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT fk_tasks_script
-        FOREIGN KEY (script_id) REFERENCES ansible_scripts(id) ON DELETE SET NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+    id            INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    category      VARCHAR(50) NOT NULL,
+    step_order    TINYINT UNSIGNED NOT NULL,
+    name          VARCHAR(150) NOT NULL,
+    description   TEXT NULL,
+    is_required   TINYINT(1) UNSIGNED NOT NULL DEFAULT 1,
+    script_id     INT UNSIGNED NULL,
+    created_at    DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at    DATETIME NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP,
+
+    CONSTRAINT fk_tasks_script 
+        FOREIGN KEY (script_id) 
+        REFERENCES ansible_scripts(id) 
+        ON DELETE SET NULL
+        ON UPDATE CASCADE
+) ENGINE=InnoDB 
+  DEFAULT CHARSET=utf8mb4 
+  COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS server_provisioning (
     id           INT UNSIGNED     NOT NULL AUTO_INCREMENT PRIMARY KEY,
