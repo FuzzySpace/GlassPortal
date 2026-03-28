@@ -200,101 +200,96 @@ CREATE TABLE IF NOT EXISTS customers (
 SET FOREIGN_KEY_CHECKS = 1;
 
 -- ============================================================
---  Bridge: datacenters VIEW over sites
+--  Phase 2: datacenters — replace VIEW with a real TABLE
 --
---  The live server uses a 'sites' table where the repo codebase
---  references 'datacenters'. We rename any existing TABLE to
---  datacenters_legacy (preserving its data) then create a
---  compatibility VIEW so all existing PHP continues to work.
+--  Earlier migrations created a VIEW over the live 'sites' table
+--  as a read-only bridge. Now that the portal has CRUD for data
+--  centers we need a writable TABLE. This procedure:
+--    1. If 'datacenters' is currently a VIEW  → drops it
+--    2. If 'datacenters' is a BASE TABLE      → leaves it alone
+--    3. If 'datacenters' does not exist       → creates it
 -- ============================================================
 
-DROP PROCEDURE IF EXISTS sp_bridge_datacenters;
+DROP PROCEDURE IF EXISTS sp_phase2_datacenters;
 
 DELIMITER //
-CREATE PROCEDURE sp_bridge_datacenters()
+CREATE PROCEDURE sp_phase2_datacenters()
 BEGIN
     DECLARE v_type VARCHAR(20) DEFAULT NULL;
     SELECT TABLE_TYPE INTO v_type
     FROM information_schema.TABLES
     WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'datacenters';
 
-    IF v_type = 'BASE TABLE' THEN
-        -- Preserve data; rename the table so the VIEW name is free
-        DROP TABLE IF EXISTS datacenters_legacy;
-        RENAME TABLE datacenters TO datacenters_legacy;
-    ELSEIF v_type = 'VIEW' THEN
-        DROP VIEW IF EXISTS datacenters;
+    IF v_type = 'VIEW' THEN
+        DROP VIEW datacenters;
+        SET v_type = NULL;   -- fall through to CREATE TABLE
+    END IF;
+
+    IF v_type IS NULL THEN
+        CREATE TABLE datacenters (
+            id                INT UNSIGNED     NOT NULL AUTO_INCREMENT PRIMARY KEY,
+            name              VARCHAR(100)     NOT NULL,
+            code              VARCHAR(20)          NULL,
+            location          VARCHAR(200)         NULL,
+            address           TEXT                 NULL,
+            city              VARCHAR(100)         NULL,
+            state             VARCHAR(100)         NULL,
+            country           VARCHAR(100)         NULL,
+            contact_name      VARCHAR(100)         NULL,
+            contact_phone     VARCHAR(50)          NULL,
+            contact_email     VARCHAR(150)         NULL,
+            power_capacity_kw SMALLINT UNSIGNED    NULL,
+            total_sqft        INT UNSIGNED         NULL,
+            status            VARCHAR(20)      NOT NULL DEFAULT 'active',
+            notes             TEXT                 NULL,
+            created_at        DATETIME         NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at        DATETIME         NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
     END IF;
 END //
 DELIMITER ;
 
-CALL sp_bridge_datacenters();
-DROP PROCEDURE IF EXISTS sp_bridge_datacenters;
-
--- Map sites -> datacenters (columns needed by dashboard.php)
-CREATE OR REPLACE VIEW datacenters AS
-SELECT
-    id,
-    name,
-    NULL        AS code,
-    NULL        AS city,
-    NULL        AS country,
-    NULL        AS status,
-    NULL        AS notes,
-    created_at,
-    updated_at
-FROM sites;
+CALL sp_phase2_datacenters();
+DROP PROCEDURE IF EXISTS sp_phase2_datacenters;
 
 -- ============================================================
---  nodes / racks: add virtual datacenter_id shim
+--  Phase 2: racks.datacenter_id + nodes.datacenter_id
 --
---  If the live nodes/racks tables have a site_id FK column,
---  we expose datacenter_id as a virtual alias so the PHP JOINs
---  (ON n.datacenter_id = d.id) resolve correctly against the
---  datacenters VIEW (which maps sites.id -> datacenters.id).
+--  These may be VIRTUAL columns (GENERATED ALWAYS AS site_id)
+--  from the earlier bridge migration. Replace with real nullable
+--  INT columns so INSERT/UPDATE operations work correctly.
 -- ============================================================
 
-DROP PROCEDURE IF EXISTS sp_add_virtual_dc_id;
+DROP PROCEDURE IF EXISTS sp_fix_dc_id_col;
 
 DELIMITER //
-CREATE PROCEDURE sp_add_virtual_dc_id()
+CREATE PROCEDURE sp_fix_dc_id_col(IN p_tbl VARCHAR(64))
 BEGIN
-    DECLARE v_has_site_id INT DEFAULT 0;
-
-    -- nodes
-    SELECT COUNT(*) INTO v_has_site_id
+    DECLARE v_extra VARCHAR(200) DEFAULT NULL;
+    SELECT EXTRA INTO v_extra
     FROM information_schema.COLUMNS
     WHERE TABLE_SCHEMA = DATABASE()
-      AND TABLE_NAME   = 'nodes'
-      AND COLUMN_NAME  = 'site_id';
+      AND TABLE_NAME   = p_tbl
+      AND COLUMN_NAME  = 'datacenter_id';
 
-    IF v_has_site_id > 0 THEN
-        SET @sql = 'ALTER TABLE nodes ADD COLUMN IF NOT EXISTS '
-                   'datacenter_id BIGINT UNSIGNED GENERATED ALWAYS AS (site_id) VIRTUAL';
-        PREPARE stmt FROM @sql;
-        EXECUTE stmt;
-        DEALLOCATE PREPARE stmt;
+    IF v_extra IS NULL THEN
+        -- column absent — add as real nullable INT
+        SET @s = CONCAT('ALTER TABLE `', p_tbl, '` ADD COLUMN datacenter_id INT UNSIGNED NULL');
+        PREPARE st FROM @s; EXECUTE st; DEALLOCATE PREPARE st;
+    ELSEIF v_extra LIKE '%VIRTUAL%' OR v_extra LIKE '%STORED%' THEN
+        -- generated column — drop and re-add as real column
+        SET @d = CONCAT('ALTER TABLE `', p_tbl, '` DROP COLUMN datacenter_id');
+        SET @a = CONCAT('ALTER TABLE `', p_tbl, '` ADD COLUMN datacenter_id INT UNSIGNED NULL');
+        PREPARE st FROM @d; EXECUTE st; DEALLOCATE PREPARE st;
+        PREPARE st FROM @a; EXECUTE st; DEALLOCATE PREPARE st;
     END IF;
-
-    -- racks
-    SELECT COUNT(*) INTO v_has_site_id
-    FROM information_schema.COLUMNS
-    WHERE TABLE_SCHEMA = DATABASE()
-      AND TABLE_NAME   = 'racks'
-      AND COLUMN_NAME  = 'site_id';
-
-    IF v_has_site_id > 0 THEN
-        SET @sql = 'ALTER TABLE racks ADD COLUMN IF NOT EXISTS '
-                   'datacenter_id BIGINT UNSIGNED GENERATED ALWAYS AS (site_id) VIRTUAL';
-        PREPARE stmt FROM @sql;
-        EXECUTE stmt;
-        DEALLOCATE PREPARE stmt;
-    END IF;
+    -- already a real column — leave it alone
 END //
 DELIMITER ;
 
-CALL sp_add_virtual_dc_id();
-DROP PROCEDURE IF EXISTS sp_add_virtual_dc_id;
+CALL sp_fix_dc_id_col('racks');
+CALL sp_fix_dc_id_col('nodes');
+DROP PROCEDURE IF EXISTS sp_fix_dc_id_col;
 
 -- ============================================================
 --  Verify: show all tables and row counts
