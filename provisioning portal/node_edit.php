@@ -141,7 +141,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     exit;
                 }
             } catch (Throwable $e) {
-                $errors[] = 'Database error: ' . $e->getMessage();
+                if ($e->getCode() == 1062 && str_contains($e->getMessage(), 'uq_nodes_name')) {
+                    $errors[] = 'A server named "' . htmlspecialchars($fields['name']) . '" already exists. Use a unique name.';
+                } else {
+                    $errors[] = 'Database error: ' . $e->getMessage();
+                }
             }
         }
     }

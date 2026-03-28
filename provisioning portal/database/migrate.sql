@@ -25,6 +25,27 @@ USE provisioning_portal;
 -- which is a separate deliberate operation. The ADD COLUMN fixes
 -- below are sufficient to restore portal functionality.
 
+-- This portal is single-tenant. Drop the legacy multi-tenant FK so
+-- node_edit.php can INSERT without requiring a tenant_id value.
+DROP PROCEDURE IF EXISTS sp_drop_tenant_fk;
+DELIMITER //
+CREATE PROCEDURE sp_drop_tenant_fk()
+BEGIN
+    DECLARE v INT DEFAULT 0;
+    SELECT COUNT(*) INTO v
+    FROM information_schema.TABLE_CONSTRAINTS
+    WHERE TABLE_SCHEMA    = DATABASE()
+      AND TABLE_NAME      = 'nodes'
+      AND CONSTRAINT_NAME = 'fk_nodes_tenant'
+      AND CONSTRAINT_TYPE = 'FOREIGN KEY';
+    IF v > 0 THEN
+        ALTER TABLE nodes DROP FOREIGN KEY fk_nodes_tenant;
+    END IF;
+END //
+DELIMITER ;
+CALL sp_drop_tenant_fk();
+DROP PROCEDURE IF EXISTS sp_drop_tenant_fk;
+
 ALTER TABLE nodes
     ADD COLUMN IF NOT EXISTS customer_id INT UNSIGNED NULL;
 
@@ -32,7 +53,7 @@ ALTER TABLE nodes
     ADD COLUMN IF NOT EXISTS rack_unit_start SMALLINT UNSIGNED NULL;
 
 ALTER TABLE nodes
-    ADD COLUMN IF NOT EXISTS rack_unit_size  TINYINT UNSIGNED NOT NULL DEFAULT 1 AFTER rack_unit_start;
+    ADD COLUMN IF NOT EXISTS rack_unit_size  TINYINT UNSIGNED NOT NULL DEFAULT 1;
 
 ALTER TABLE nodes
     ADD COLUMN IF NOT EXISTS site            VARCHAR(50)  NULL;

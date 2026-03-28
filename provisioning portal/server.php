@@ -15,27 +15,52 @@ if (!$id) {
 }
 
 // ---- Load server with all relations ----
-$stmt = $pdo->prepare("
-    SELECT
-        n.*,
-        d.id   AS dc_id,   d.name AS dc_name,   d.code AS dc_code,
-        d.city AS dc_city, d.country AS dc_country, d.address AS dc_address,
-        d.contact_name AS dc_contact, d.contact_email AS dc_contact_email,
-        r.id   AS r_id,    r.name AS rack_name,  r.row_label AS rack_row,
-        r.total_units AS rack_total_units,
-        c.id   AS cust_id, c.name AS customer_name,
-        c.service_level, c.company_type AS cust_type,
-        c.contact_name AS cust_contact, c.contact_email AS cust_email,
-        c.contact_phone AS cust_phone,
-        c.account_status AS cust_status, c.mrr_cents
-    FROM nodes n
-    LEFT JOIN datacenters d ON d.id = n.datacenter_id
-    LEFT JOIN racks        r ON r.id = n.rack_id
-    LEFT JOIN customers    c ON c.id = n.customer_id
-    WHERE n.id = ?
-");
-$stmt->execute([$id]);
-$server = $stmt->fetch();
+$server = null;
+try {
+    $stmt = $pdo->prepare("
+        SELECT
+            n.*,
+            d.id   AS dc_id,   d.name AS dc_name,   d.code AS dc_code,
+            d.city AS dc_city, d.country AS dc_country, d.address AS dc_address,
+            d.contact_name AS dc_contact, d.contact_email AS dc_contact_email,
+            r.id   AS r_id,    r.name AS rack_name,  r.row_label AS rack_row,
+            r.total_units AS rack_total_units,
+            c.id   AS cust_id, c.name AS customer_name,
+            c.service_level, c.company_type AS cust_type,
+            c.contact_name AS cust_contact, c.contact_email AS cust_email,
+            c.contact_phone AS cust_phone,
+            c.account_status AS cust_status, c.mrr_cents
+        FROM nodes n
+        LEFT JOIN datacenters d ON d.id = n.datacenter_id
+        LEFT JOIN racks        r ON r.id = n.rack_id
+        LEFT JOIN customers    c ON c.id = n.customer_id
+        WHERE n.id = ?
+    ");
+    $stmt->execute([$id]);
+    $server = $stmt->fetch();
+} catch (\PDOException $e) {
+    // Some extended columns (row_label, dc contact fields) may not exist yet —
+    // fall back to a minimal query that works on any schema version.
+    $stmt = $pdo->prepare("
+        SELECT
+            n.*,
+            d.id   AS dc_id,   d.name AS dc_name,   d.code AS dc_code,
+            d.city AS dc_city, d.country AS dc_country,
+            r.id   AS r_id,    r.name AS rack_name,
+            c.id   AS cust_id, c.name AS customer_name,
+            c.service_level, c.company_type AS cust_type,
+            c.contact_name AS cust_contact, c.contact_email AS cust_email,
+            c.contact_phone AS cust_phone,
+            c.account_status AS cust_status, c.mrr_cents
+        FROM nodes n
+        LEFT JOIN datacenters d ON d.id = n.datacenter_id
+        LEFT JOIN racks        r ON r.id = n.rack_id
+        LEFT JOIN customers    c ON c.id = n.customer_id
+        WHERE n.id = ?
+    ");
+    $stmt->execute([$id]);
+    $server = $stmt->fetch();
+}
 
 if (!$server) {
     header('Location: /hardware.php');
@@ -43,18 +68,21 @@ if (!$server) {
 }
 
 // ---- Recent automation runs on this node ----
-$runsStmt = $pdo->prepare("
-    SELECT ar.id, ar.status, ar.created_at, ar.duration_ms,
-           a.name AS automation_name
-    FROM automation_runs ar
-    JOIN automations a ON a.id = ar.automation_id
-    WHERE JSON_SEARCH(ar.meta, 'one', ?, NULL, '$.targets') IS NOT NULL
-       OR ar.meta->>'$.node_id' = ?
-    ORDER BY ar.created_at DESC
-    LIMIT 10
-");
-$runsStmt->execute([$server['name'], (string)$id]);
-$recentRuns = $runsStmt->fetchAll();
+$recentRuns = [];
+try {
+    $runsStmt = $pdo->prepare("
+        SELECT ar.id, ar.status, ar.created_at, ar.duration_ms,
+               a.name AS automation_name
+        FROM automation_runs ar
+        JOIN automations a ON a.id = ar.automation_id
+        WHERE JSON_SEARCH(ar.meta, 'one', ?, NULL, '$.targets') IS NOT NULL
+           OR ar.meta->>'$.node_id' = ?
+        ORDER BY ar.created_at DESC
+        LIMIT 10
+    ");
+    $runsStmt->execute([$server['name'], (string)$id]);
+    $recentRuns = $runsStmt->fetchAll();
+} catch (\PDOException $e) { /* meta column not yet added via migration */ }
 
 $canSeeMgmt = in_array($role, ['owner','admin','security'], true);
 
