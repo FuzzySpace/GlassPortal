@@ -53,6 +53,57 @@ ALTER TABLE nodes
     ADD COLUMN IF NOT EXISTS updated_at      DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP;
 
 -- ============================================================
+--  users: add last_login_at if missing
+--  (login_handler.php updates this column on every login)
+-- ============================================================
+
+ALTER TABLE users
+    ADD COLUMN IF NOT EXISTS last_login_at DATETIME NULL;
+
+-- ============================================================
+--  automation_runs: add meta column if missing
+--  (scripts.php line 98 uses r.meta->>'$.script.script_id')
+-- ============================================================
+
+ALTER TABLE automation_runs
+    ADD COLUMN IF NOT EXISTS meta LONGTEXT NULL;
+
+-- ============================================================
+--  racks: add columns expected by hardware.php, rack.php
+--  datacenter_id: virtual alias for site_id if it exists,
+--  otherwise a real nullable column (populated by DC CRUD)
+-- ============================================================
+
+DROP PROCEDURE IF EXISTS sp_fix_racks_dc_id;
+
+DELIMITER //
+CREATE PROCEDURE sp_fix_racks_dc_id()
+BEGIN
+    DECLARE v INT DEFAULT 0;
+    SELECT COUNT(*) INTO v FROM information_schema.COLUMNS
+    WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'racks' AND COLUMN_NAME = 'site_id';
+    IF v > 0 THEN
+        SET @s = 'ALTER TABLE racks ADD COLUMN IF NOT EXISTS datacenter_id BIGINT UNSIGNED GENERATED ALWAYS AS (site_id) VIRTUAL';
+    ELSE
+        SET @s = 'ALTER TABLE racks ADD COLUMN IF NOT EXISTS datacenter_id BIGINT UNSIGNED NULL';
+    END IF;
+    PREPARE st FROM @s; EXECUTE st; DEALLOCATE PREPARE st;
+END //
+DELIMITER ;
+
+CALL sp_fix_racks_dc_id();
+DROP PROCEDURE IF EXISTS sp_fix_racks_dc_id;
+
+ALTER TABLE racks ADD COLUMN IF NOT EXISTS total_units    TINYINT UNSIGNED NOT NULL DEFAULT 42;
+ALTER TABLE racks ADD COLUMN IF NOT EXISTS row_label      VARCHAR(50)  NULL;
+ALTER TABLE racks ADD COLUMN IF NOT EXISTS position       VARCHAR(50)  NULL;
+ALTER TABLE racks ADD COLUMN IF NOT EXISTS rack_height_mm SMALLINT UNSIGNED NULL;
+ALTER TABLE racks ADD COLUMN IF NOT EXISTS power_amps     TINYINT UNSIGNED NULL;
+ALTER TABLE racks ADD COLUMN IF NOT EXISTS status         VARCHAR(20)  NOT NULL DEFAULT 'active';
+ALTER TABLE racks ADD COLUMN IF NOT EXISTS notes          TEXT         NULL;
+ALTER TABLE racks ADD COLUMN IF NOT EXISTS updated_at     DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP;
+
+-- ============================================================
 --  automations: add schedule_cron
 -- ============================================================
 
@@ -138,23 +189,13 @@ CREATE TABLE IF NOT EXISTS customers (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ============================================================
---  Add missing FK constraints (ignore errors if they exist)
+--  FK constraints are intentionally omitted from this migration.
+--  The application enforces referential integrity at the query
+--  level. Adding FK constraints to an existing live database
+--  with accumulated data is fragile (type mismatches, orphaned
+--  rows, naming conflicts). If you want FK enforcement, add them
+--  manually after verifying data consistency.
 -- ============================================================
-
--- nodes.customer_id -> customers
-ALTER TABLE nodes
-    ADD CONSTRAINT fk_nodes_customer
-        FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE SET NULL;
-
--- automation_runs.initiated_by_user_id -> users
-ALTER TABLE automation_runs
-    ADD CONSTRAINT fk_runs_initiator
-        FOREIGN KEY (initiated_by_user_id) REFERENCES users(id) ON DELETE SET NULL;
-
--- ansible_scripts.created_by_user_id -> users
-ALTER TABLE ansible_scripts
-    ADD CONSTRAINT fk_scripts_creator
-        FOREIGN KEY (created_by_user_id) REFERENCES users(id) ON DELETE SET NULL;
 
 SET FOREIGN_KEY_CHECKS = 1;
 

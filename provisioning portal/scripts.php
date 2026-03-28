@@ -55,13 +55,46 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $canEdit) {
                 $success = "Script \"$name\" added successfully.";
             }
 
+        // Edit existing script
+        } elseif ($action === 'edit' && ctype_digit($_POST['id'] ?? '')) {
+            $tid     = (int)$_POST['id'];
+            $name    = trim((string)($_POST['name'] ?? ''));
+            $desc    = trim((string)($_POST['description'] ?? ''));
+            $type    = trim((string)($_POST['script_type'] ?? 'playbook'));
+            $cat     = trim((string)($_POST['category'] ?? ''));
+            $command = trim((string)($_POST['command'] ?? ''));
+            $tags    = trim((string)($_POST['tags'] ?? ''));
+            $timeout = (int)($_POST['timeout_seconds'] ?? 3600);
+            $sudo    = (int)($_POST['requires_sudo'] ?? 0);
+
+            if ($name === '')    $errors[] = 'Script name required.';
+            if ($command === '') $errors[] = 'Command / playbook path required.';
+            $allowedTypes = ['playbook','adhoc','role'];
+            if (!in_array($type, $allowedTypes, true)) $errors[] = 'Invalid script type.';
+
+            if (!$errors) {
+                $pdo->prepare("
+                    UPDATE ansible_scripts
+                       SET name=?, description=?, script_type=?, category=?, command=?,
+                           tags=?, timeout_seconds=?, requires_sudo=?
+                     WHERE id=?
+                ")->execute([$name, $desc ?: null, $type, $cat ?: null, $command,
+                             $tags ?: null, $timeout, $sudo ? 1 : 0, $tid]);
+                $success = "Script \"{$name}\" updated.";
+            }
+
         // Delete
         } elseif ($action === 'delete' && ctype_digit($_POST['id'] ?? '')) {
             $tid = (int)$_POST['id'];
-            // Safety: check not in use by recent runs
-            $inUse = (int)$pdo->prepare("SELECT COUNT(*) FROM automation_run_logs WHERE message LIKE ? LIMIT 1")->execute(['%script_id%']) ? 0 : 0;
-            $pdo->prepare("DELETE FROM ansible_scripts WHERE id=?")->execute([$tid]);
-            $success = 'Script deleted.';
+            $chk = $pdo->prepare("SELECT COUNT(*) FROM automation_runs WHERE meta->>'$.script.script_id' = ?");
+            $chk->execute([(string)$tid]);
+            $inUse = (int)$chk->fetchColumn();
+            if ($inUse > 0) {
+                $errors[] = "Cannot delete: script has been used in {$inUse} run(s). Disable it instead.";
+            } else {
+                $pdo->prepare("DELETE FROM ansible_scripts WHERE id=?")->execute([$tid]);
+                $success = 'Script deleted.';
+            }
         }
     }
 }
@@ -106,6 +139,8 @@ $scripts = $scripts->fetchAll();
 $categories = $pdo->query("SELECT DISTINCT category FROM ansible_scripts WHERE category IS NOT NULL ORDER BY category")->fetchAll(PDO::FETCH_COLUMN);
 $totalActive = (int)$pdo->query("SELECT COUNT(*) FROM ansible_scripts WHERE is_active=1")->fetchColumn();
 $totalAll    = (int)$pdo->query("SELECT COUNT(*) FROM ansible_scripts")->fetchColumn();
+
+$editId = ctype_digit($_GET['edit'] ?? '') ? (int)$_GET['edit'] : 0;
 
 // Group by category for display
 $grouped = [];
@@ -325,6 +360,24 @@ ksort($grouped);
                                 <?= $s['is_active'] ? 'Disable' : 'Enable' ?>
                               </button>
                             </form>
+                            <?php if ($editId === (int)$s['id']): ?>
+                              <a class="btn" style="padding:4px 10px;font-size:12px;"
+                                 href="/scripts.php?cat=<?= urlencode($catFilter) ?>&type=<?= urlencode($typeFilter) ?>&q=<?= urlencode($q) ?>">
+                                Cancel
+                              </a>
+                            <?php else: ?>
+                              <a class="btn" style="padding:4px 10px;font-size:12px;"
+                                 href="/scripts.php?edit=<?= (int)$s['id'] ?>&cat=<?= urlencode($catFilter) ?>&type=<?= urlencode($typeFilter) ?>&q=<?= urlencode($q) ?>">
+                                Edit
+                              </a>
+                            <?php endif; ?>
+                            <form method="post" action="/scripts.php" style="display:inline;"
+                                  onsubmit="return confirm('Delete script <?= htmlspecialchars(addslashes($s['name'])) ?>? This cannot be undone.')">
+                              <input type="hidden" name="csrf" value="<?= htmlspecialchars(csrf_token()) ?>" />
+                              <input type="hidden" name="action" value="delete" />
+                              <input type="hidden" name="id" value="<?= (int)$s['id'] ?>" />
+                              <button class="btn" style="padding:4px 10px;font-size:12px;color:var(--danger,#f87171);" type="submit">Del</button>
+                            </form>
                             <a class="btn btn--primary" style="padding:4px 10px;font-size:12px;"
                                href="/automations.php?script=<?= (int)$s['id'] ?>">
                               Run →
@@ -339,6 +392,76 @@ ksort($grouped);
                           </td>
                         <?php endif; ?>
                       </tr>
+                      <?php if ($canEdit && $editId === (int)$s['id']): ?>
+                      <tr class="edit-row-expanded">
+                        <td colspan="8">
+                          <form method="post" action="/scripts.php" class="scripts-edit-form">
+                            <input type="hidden" name="csrf" value="<?= htmlspecialchars(csrf_token()) ?>" />
+                            <input type="hidden" name="action" value="edit" />
+                            <input type="hidden" name="id" value="<?= (int)$s['id'] ?>" />
+
+                            <div class="node-edit-grid">
+                              <div class="form-row">
+                                <label>Script name <span class="badge badge--danger">required</span></label>
+                                <input type="text" name="name" value="<?= htmlspecialchars($s['name']) ?>" required />
+                              </div>
+
+                              <div class="form-row">
+                                <label>Type</label>
+                                <select name="script_type">
+                                  <?php foreach (['playbook'=>'Playbook','adhoc'=>'Ad-hoc command','role'=>'Role'] as $v => $l): ?>
+                                    <option value="<?= $v ?>" <?= $s['script_type']===$v?'selected':'' ?>><?= $l ?></option>
+                                  <?php endforeach; ?>
+                                </select>
+                              </div>
+
+                              <div class="form-row">
+                                <label>Category</label>
+                                <select name="category">
+                                  <option value="">— Uncategorised —</option>
+                                  <?php foreach (['provisioning','hardening','patching','monitoring','backup','custom'] as $cv): ?>
+                                    <option value="<?= $cv ?>" <?= ($s['category']??'')===$cv?'selected':'' ?>><?= ucfirst($cv) ?></option>
+                                  <?php endforeach; ?>
+                                </select>
+                              </div>
+
+                              <div class="form-row">
+                                <label>Timeout (seconds)</label>
+                                <input type="number" name="timeout_seconds" value="<?= (int)$s['timeout_seconds'] ?>" min="60" max="86400" />
+                              </div>
+                            </div>
+
+                            <div style="padding:0 0 14px;">
+                              <div class="form-row" style="margin-bottom:10px;">
+                                <label>Command / Playbook path <span class="badge badge--danger">required</span></label>
+                                <input type="text" name="command" value="<?= htmlspecialchars($s['command']) ?>"
+                                       style="font-family:monospace;" required />
+                              </div>
+
+                              <div class="form-row" style="margin-bottom:10px;">
+                                <label>Description</label>
+                                <input type="text" name="description" value="<?= htmlspecialchars((string)($s['description'] ?? '')) ?>" />
+                              </div>
+
+                              <div class="form-row" style="margin-bottom:10px;">
+                                <label>Tags</label>
+                                <input type="text" name="tags" value="<?= htmlspecialchars((string)($s['tags'] ?? '')) ?>" />
+                              </div>
+
+                              <label style="display:flex; gap:10px; align-items:center; font-size:13px; margin-bottom:14px;">
+                                <input type="checkbox" name="requires_sudo" value="1" <?= $s['requires_sudo'] ? 'checked' : '' ?> />
+                                Requires sudo / become
+                              </label>
+
+                              <div style="display:flex; gap:8px;">
+                                <button class="btn btn--primary" type="submit">Save changes</button>
+                                <a class="btn" href="/scripts.php?cat=<?= urlencode($catFilter) ?>&type=<?= urlencode($typeFilter) ?>&q=<?= urlencode($q) ?>">Cancel</a>
+                              </div>
+                            </div>
+                          </form>
+                        </td>
+                      </tr>
+                      <?php endif; ?>
                     <?php endforeach; ?>
                   </tbody>
                 </table>
@@ -359,6 +482,15 @@ ksort($grouped);
   border-top: 1px solid rgba(255,255,255,0.05);
 }
 .row-inactive td { opacity: 0.5; }
+.edit-row-expanded td {
+  background: rgba(255,255,255,0.03);
+  padding: 16px 18px;
+  border-top: 1px solid rgba(99,102,241,0.3);
+  border-bottom: 1px solid rgba(99,102,241,0.3);
+}
+.scripts-edit-form .node-edit-grid {
+  padding: 0 0 10px;
+}
 </style>
 </body>
 </html>
