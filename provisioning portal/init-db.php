@@ -51,7 +51,7 @@ if ($adminEmail === '') {
     echo "Glasshouse NOC Portal — Database Initialisation\n";
     echo "================================================\n\n";
     echo "Admin email: ";
-    $adminEmail = trim((string)fgets(STDIN));
+    $adminEmail = trim(preg_replace('/[\x00-\x1F\x7F]/', '', (string)fgets(STDIN)));
 }
 
 if ($adminPassword === '') {
@@ -73,7 +73,8 @@ if ($webPort === '' || (int)$webPort < 1024) {
 
 // Validate inputs
 if (!filter_var($adminEmail, FILTER_VALIDATE_EMAIL)) {
-    fwrite(STDERR, "ERROR: Invalid admin email address.\n");
+    fwrite(STDERR, "ERROR: Invalid admin email address: '" . $adminEmail . "'\n");
+    fwrite(STDERR, "       (length=" . strlen($adminEmail) . ", hex=" . bin2hex($adminEmail) . ")\n");
     exit(1);
 }
 if (strlen($adminPassword) < 10) {
