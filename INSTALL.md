@@ -77,7 +77,7 @@ There are three deployment paths:
 
 ```bash
 # Clone the repository
-git clone https://github.com/GlassMineCraft/Glasshouse-Provisioning-Portal-Development.git /var/www/glasshouse
+git clone https://github.com/FuzzySpace/GlassPortal.git /var/www/glassportal
 
 # Or download and extract a release archive
 unzip GlasshousePortal-x.x.x.zip -d /var/www/glasshouse
