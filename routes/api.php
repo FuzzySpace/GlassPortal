@@ -1,15 +1,12 @@
 <?php
 
-use Illuminate\Http\Request;
+use App\Services\GlassBilling\GlassBillingClient;
 use Illuminate\Support\Facades\Route;
 
 /*
 |--------------------------------------------------------------------------
 | GlassPortal API Routes
 |--------------------------------------------------------------------------
-|
-| Phase 2 — stubs only. Live connectors are Phase 3+.
-|
 */
 
 Route::get('/health', function () {
@@ -22,31 +19,31 @@ Route::get('/health', function () {
     ]);
 });
 
+Route::get('/glassbilling/health', function (GlassBillingClient $client) {
+    $health = $client->health();
+
+    return response()->json([
+        'module' => 'GlassBilling',
+        ...$health,
+    ], $health['status'] === 'online' ? 200 : 503);
+});
+
 /*
 |--------------------------------------------------------------------------
-| Module connector stubs (Phase 3+)
+| Other module health stubs (Phase 4+)
 |--------------------------------------------------------------------------
-|
-| These routes will proxy to their respective Glasshouse modules once
-| connectors are implemented. For now they return 501 Not Implemented.
-|
 */
 
-$modules = [
-    'glassbilling' => 'GlassBilling',
-    'glasspanel'   => 'GlassPanel',
-    'aria'         => 'Aria',
-    'proxmox'      => 'Proxmox',
-    'powerdns'     => 'PowerDNS',
-    'mailcow'      => 'Mailcow',
-];
+$stubModules = ['glasspanel', 'aria', 'proxmox', 'powerdns', 'mailcow', 'pterodactyl'];
 
-foreach ($modules as $slug => $label) {
-    Route::get("/connectors/{$slug}/health", function () use ($label) {
+foreach ($stubModules as $slug) {
+    Route::get("/connectors/{$slug}/health", function () use ($slug) {
+        $module = config("glasshouse.modules.{$slug}", []);
+
         return response()->json([
-            'module'  => $label,
-            'status'  => 'not_implemented',
-            'message' => "{$label} connector is not yet wired. Phase 3+.",
+            'module'  => $module['display_name'] ?? $slug,
+            'status'  => 'stub',
+            'message' => 'Connector not yet implemented. Phase 4+.',
         ], 501);
     });
 }

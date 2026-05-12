@@ -1,78 +1,51 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>GlassPortal — Glasshouse Ecosystem</title>
-    <style>
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-        body {
-            font-family: ui-sans-serif, system-ui, sans-serif;
-            background: #0f1117;
-            color: #e2e8f0;
-            min-height: 100vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-        .card {
-            max-width: 540px;
-            width: 100%;
-            padding: 3rem 2rem;
-            text-align: center;
-        }
-        .badge {
-            display: inline-block;
-            font-size: 0.75rem;
-            font-weight: 600;
-            letter-spacing: 0.08em;
-            text-transform: uppercase;
-            color: #60a5fa;
-            border: 1px solid #1e40af;
-            border-radius: 9999px;
-            padding: 0.25rem 0.75rem;
-            margin-bottom: 1.5rem;
-        }
-        h1 { font-size: 2.25rem; font-weight: 700; letter-spacing: -0.02em; margin-bottom: 0.75rem; }
-        h1 span { color: #60a5fa; }
-        p { color: #94a3b8; line-height: 1.6; margin-bottom: 2rem; }
-        .links { display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap; }
-        .link {
-            font-size: 0.875rem;
-            padding: 0.5rem 1.25rem;
-            border-radius: 0.375rem;
-            text-decoration: none;
-            border: 1px solid #334155;
-            color: #94a3b8;
-            transition: border-color 0.15s, color 0.15s;
-        }
-        .link:hover { border-color: #60a5fa; color: #e2e8f0; }
-        .status {
-            margin-top: 2.5rem;
-            font-size: 0.75rem;
-            color: #475569;
-        }
-        .dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: #22c55e; margin-right: 0.4rem; vertical-align: middle; }
-    </style>
-</head>
-<body>
-    <div class="card">
-        <div class="badge">Phase 2 — Laravel Foundation</div>
-        <h1>Glass<span>Portal</span></h1>
-        <p>
-            Unified customer and staff portal for the Glasshouse ecosystem.<br>
-            Core infrastructure is live. Module integrations are coming in Phase 3+.
-        </p>
-        <div class="links">
-            <a class="link" href="/portal">Customer Portal</a>
-            <a class="link" href="/admin">Staff Portal</a>
-            <a class="link" href="/api/health">API Health</a>
-            <a class="link" href="/up">Uptime Check</a>
-        </div>
-        <p class="status">
-            <span class="dot"></span>
-            Laravel {{ app()->version() }} &nbsp;·&nbsp; PHP {{ PHP_MAJOR_VERSION }}.{{ PHP_MINOR_VERSION }} &nbsp;·&nbsp; {{ app()->environment() }}
-        </p>
+@extends('layouts.public')
+
+@section('title', 'GlassPortal')
+
+@push('styles')
+<style>
+    .hero {
+        max-width: 640px; margin: 5rem auto; padding: 0 1.5rem; text-align: center;
+    }
+    .hero-badge {
+        display: inline-block; font-size: 0.7rem; font-weight: 700; letter-spacing: 0.08em;
+        text-transform: uppercase; color: #58a6ff;
+        border: 1px solid rgba(88,166,255,.3); border-radius: 9999px;
+        padding: 0.25rem 0.8rem; margin-bottom: 1.5rem;
+    }
+    .hero h1 { font-size: 2.5rem; font-weight: 800; letter-spacing: -0.03em; color: #f0f6fc; margin-bottom: 1rem; }
+    .hero h1 span { color: #58a6ff; }
+    .hero p { color: #8b949e; line-height: 1.7; font-size: 1.05rem; margin-bottom: 2rem; }
+    .hero-links { display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap; }
+    .hero-links a {
+        padding: 0.55rem 1.25rem; border-radius: 0.375rem; font-size: 0.9rem; font-weight: 500;
+        border: 1px solid #30363d; color: #c9d1d9; background: #161b22; text-decoration: none;
+        transition: border-color .15s, color .15s;
+    }
+    .hero-links a:hover { border-color: #58a6ff; color: #f0f6fc; }
+    .hero-links a.primary { background: #1f6feb; border-color: #58a6ff; color: #fff; }
+    .hero-links a.primary:hover { background: #58a6ff; }
+    .status-bar { margin-top: 3rem; padding-top: 1.5rem; border-top: 1px solid #21262d; font-size: 0.75rem; color: #484f58; }
+    .status-dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: #3fb950; margin-right: .4rem; vertical-align: middle; }
+</style>
+@endpush
+
+@section('content')
+<div class="hero">
+    <div class="hero-badge">Phase 3 — Auth &amp; Module Shell</div>
+    <h1>Glass<span>Portal</span></h1>
+    <p>
+        Unified customer and staff portal for the Glasshouse ecosystem.<br>
+        Authentication, module registry, and GlassBilling connector are now live.
+    </p>
+    <div class="hero-links">
+        <a href="{{ route('login') }}" class="primary">Sign in</a>
+        <a href="/api/health">API Health</a>
+        <a href="/up">Uptime</a>
     </div>
-</body>
-</html>
+    <div class="status-bar">
+        <span class="status-dot"></span>
+        Laravel {{ app()->version() }} &nbsp;·&nbsp; PHP {{ PHP_MAJOR_VERSION }}.{{ PHP_MINOR_VERSION }} &nbsp;·&nbsp; {{ app()->environment() }}
+    </div>
+</div>
+@endsection
