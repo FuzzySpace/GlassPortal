@@ -5,28 +5,30 @@
 *.pem
 *.key
 secrets/
-config/db.php
-config/portal.cfg
 
 # --- PHP / Composer ---
-vendor/
+/vendor/
 composer.phar
 .phpunit.result.cache
 .phpunit.cache/
 
-# --- Laravel (if/when fully scaffolded) ---
-laravel/vendor/
-laravel/.env
-laravel/storage/logs/*
-laravel/storage/framework/cache/data/*
-laravel/storage/framework/sessions/*
-laravel/storage/framework/views/*
-laravel/storage/framework/testing/*
-laravel/bootstrap/cache/*.php
-!**/.gitkeep
+# --- Laravel runtime ---
+/storage/logs/*
+!/storage/logs/.gitkeep
+/storage/framework/cache/data/*
+!/storage/framework/cache/data/.gitkeep
+/storage/framework/sessions/*
+!/storage/framework/sessions/.gitkeep
+/storage/framework/testing/*
+!/storage/framework/testing/.gitkeep
+/storage/framework/views/*
+!/storage/framework/views/.gitkeep
+/bootstrap/cache/*.php
+!/bootstrap/cache/.gitkeep
+database/database.sqlite
 
 # --- Node / JS ---
-node_modules/
+/node_modules/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
@@ -36,16 +38,16 @@ pnpm-debug.log*
 .nuxt/
 .svelte-kit/
 .turbo/
-dist/
-build/
+/dist/
+/build/
+/public/build/
+/public/hot/
 coverage/
 *.tsbuildinfo
 
 # --- Logs / caches / runtime ---
 logs/
 *.log
-storage/logs/
-storage/cache/
 cache/
 tmp/
 temp/
