@@ -1,0 +1,77 @@
+# --- Secrets / environment ---
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+secrets/
+config/db.php
+config/portal.cfg
+
+# --- PHP / Composer ---
+vendor/
+composer.phar
+.phpunit.result.cache
+.phpunit.cache/
+
+# --- Laravel (if/when fully scaffolded) ---
+laravel/vendor/
+laravel/.env
+laravel/storage/logs/*
+laravel/storage/framework/cache/data/*
+laravel/storage/framework/sessions/*
+laravel/storage/framework/views/*
+laravel/storage/framework/testing/*
+laravel/bootstrap/cache/*.php
+!**/.gitkeep
+
+# --- Node / JS ---
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.pnpm-store/
+.next/
+.nuxt/
+.svelte-kit/
+.turbo/
+dist/
+build/
+coverage/
+*.tsbuildinfo
+
+# --- Logs / caches / runtime ---
+logs/
+*.log
+storage/logs/
+storage/cache/
+cache/
+tmp/
+temp/
+runtime/
+
+# --- Windows installer build output ---
+windows-installer/output/
+windows-installer/dist/
+*.iss.bak
+*.exe
+*.msi
+
+# --- Editor / OS junk ---
+.DS_Store
+Thumbs.db
+desktop.ini
+.idea/
+.vscode/
+!.vscode/extensions.json
+*.swp
+*.swo
+*~
+*.bak
+*.orig
+
+# --- Database dumps that may contain real data ---
+*.sql.gz
+*.sql.bak
+*.dump
