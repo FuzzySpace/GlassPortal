@@ -25,9 +25,9 @@ return [
         'glassbilling' => [
             'enabled'         => (bool) env('GLASSBILLING_ENABLED', false),
             'display_name'    => 'GlassBilling',
-            'base_url'        => env('GLASSBILLING_API_URL', ''),
+            'base_url'        => env('GLASSBILLING_BASE_URL', ''),
             'token'           => env('GLASSBILLING_API_TOKEN', ''),
-            'timeout'         => (int) env('GLASSBILLING_TIMEOUT', 5),
+            'timeout'         => (int) env('GLASSBILLING_TIMEOUT', 8),
             'health_endpoint' => '/api/health',
             'notes'           => 'Billing SoR: subscriptions, invoices, products, lifecycle, credential broker.',
         ],
@@ -96,13 +96,16 @@ return [
 
     /*
     |--------------------------------------------------------------------------
-    | GlassBilling connector shortcut (used by GlassBillingClient directly)
+    | GlassBilling connector shortcut
     |--------------------------------------------------------------------------
+    | GlassBillingClient reads directly from config/glassbilling.php.
+    | This alias keeps module-registry lookups consistent.
     */
     'glassbilling' => [
-        'base_url' => env('GLASSBILLING_API_URL', ''),
-        'token'    => env('GLASSBILLING_API_TOKEN', ''),
-        'timeout'  => (int) env('GLASSBILLING_TIMEOUT', 5),
+        'base_url'   => env('GLASSBILLING_BASE_URL', ''),
+        'token'      => env('GLASSBILLING_API_TOKEN', ''),
+        'timeout'    => (int) env('GLASSBILLING_TIMEOUT', 8),
+        'verify_tls' => filter_var(env('GLASSBILLING_VERIFY_TLS', true), FILTER_VALIDATE_BOOLEAN),
     ],
 
     /*

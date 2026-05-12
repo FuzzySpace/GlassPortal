@@ -5,46 +5,69 @@
 
 @section('content')
 
-{{-- GlassBilling connection status --}}
 @php
-    $billingStatus = $billingHealth['status'] ?? 'unconfigured';
-    $billingDetail = $billingHealth['detail'] ?? '';
-    $summary       = $billingSummary ?? [];
+    $billingStatus  = $billingHealth['status'] ?? 'unconfigured';
+    $billingDetail  = $billingHealth['detail'] ?? '';
+    $billingLatency = $billingHealth['latency_ms'] ?? null;
 @endphp
 
-<div class="alert {{ $billingStatus === 'online' ? 'alert-info' : 'alert-warning' }}" style="margin-bottom:1.5rem">
-    <strong>GlassBilling:</strong>
-    <span class="badge badge-{{ $billingStatus }}">{{ $billingStatus }}</span>
-    @if($billingDetail)
-        &nbsp;<span class="text-dim text-sm">{{ $billingDetail }}</span>
-    @endif
-    @if($billingStatus !== 'online')
-        — Set <code>GLASSBILLING_API_URL</code> and <code>GLASSBILLING_API_TOKEN</code> to connect.
+{{-- GlassBilling connection status card --}}
+<div class="card" style="margin-bottom:1.5rem;display:flex;justify-content:space-between;align-items:center;padding:.85rem 1.25rem">
+    <div style="display:flex;align-items:center;gap:.75rem">
+        <strong style="color:var(--text-h)">GlassBilling</strong>
+        <span class="badge badge-{{ $billingStatus }}">{{ $billingStatus }}</span>
+        @if($billingDetail)
+            <span class="text-dim text-sm">{{ $billingDetail }}</span>
+        @endif
+        @if($billingStatus !== 'online')
+            <span class="text-dim text-sm">— Set <code>GLASSBILLING_BASE_URL</code> + <code>GLASSBILLING_API_TOKEN</code></span>
+        @endif
+    </div>
+    @if($billingLatency !== null)
+        <span class="text-dim text-sm">{{ $billingLatency }}ms</span>
     @endif
 </div>
 
-{{-- Summary cards --}}
+@if(!$billingOk && $billingError)
+<div class="alert alert-warning" style="margin-bottom:1.5rem">{{ $billingError }}</div>
+@endif
+
+{{-- Summary tiles --}}
 <div class="grid grid-4" style="margin-bottom:1.5rem">
-    <div class="card">
-        <div class="card-title">Active Subscriptions</div>
-        <div class="card-value">{{ $summary['active_subscriptions'] ?? '—' }}</div>
-        <div class="card-sub">via GlassBilling</div>
-    </div>
-    <div class="card">
-        <div class="card-title">MRR (USD)</div>
-        <div class="card-value">{{ $summary['mrr_usd'] !== null ? '$'.number_format($summary['mrr_usd'], 2) : '—' }}</div>
-        <div class="card-sub">monthly recurring</div>
-    </div>
-    <div class="card">
-        <div class="card-title">Open Invoices</div>
-        <div class="card-value">{{ $summary['open_invoices'] ?? '—' }}</div>
-        <div class="card-sub">awaiting payment</div>
-    </div>
-    <div class="card">
-        <div class="card-title">Pending Approvals</div>
-        <div class="card-value">{{ $summary['pending_approvals'] ?? '—' }}</div>
-        <div class="card-sub">provisioning requests</div>
-    </div>
+    @if($billingOk && count($tiles ?? []))
+        @foreach($tiles as $tile)
+        <div class="card">
+            <div class="card-title">{{ $tile['label'] ?? 'Metric' }}</div>
+            <div class="card-value">{{ $tile['value'] ?? '—' }}</div>
+            @if(!empty($tile['sub']))
+                <div class="text-sm text-dim" style="margin-top:.25rem">{{ $tile['sub'] }}</div>
+            @endif
+        </div>
+        @endforeach
+    @else
+        <div class="card">
+            <div class="card-title">Services</div>
+            <div class="card-value">{{ $servicesTotal ?? '—' }}</div>
+            <div class="text-sm text-dim" style="margin-top:.25rem">customer services</div>
+        </div>
+        <div class="card">
+            <div class="card-title">Provisioning</div>
+            <div class="card-value">{{ $provisionTotal ?? '—' }}</div>
+            <div class="text-sm text-dim" style="margin-top:.25rem">pending requests</div>
+        </div>
+        <div class="card">
+            <div class="card-title">Invoice Approvals</div>
+            <div class="card-value">{{ $approvalsTotal ?? '—' }}</div>
+            <div class="text-sm text-dim" style="margin-top:.25rem">awaiting approval</div>
+        </div>
+        <div class="card">
+            <div class="card-title">Connector</div>
+            <div class="card-value" style="font-size:1rem;color:var(--text-dim)">
+                {{ $billingStatus === 'unconfigured' ? 'Not set up' : ucfirst($billingStatus) }}
+            </div>
+            <div class="text-sm text-dim" style="margin-top:.25rem">GlassBilling status</div>
+        </div>
+    @endif
 </div>
 
 {{-- Module quick-links --}}
@@ -64,7 +87,7 @@
                 <span class="badge badge-stub">stub</span>
             @endif
         </div>
-        <div class="text-sm text-dim">{{ $module['description'] ?? '' }}</div>
+        <div class="text-sm text-dim">{{ $module['notes'] ?? '' }}</div>
     </div>
     @endforeach
 </div>

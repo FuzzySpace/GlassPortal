@@ -5,20 +5,25 @@ namespace App\Console\Commands;
 use App\Services\GlassBilling\GlassBillingClient;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 class GlassPortalHealthCheck extends Command
 {
-    protected $signature   = 'glassportal:healthcheck';
+    protected $signature   = 'glassportal:healthcheck {--strict : Fail if GlassBilling is unreachable or returns auth error}';
     protected $description = 'Run GlassPortal system health checks and report status';
 
     public function handle(GlassBillingClient $billing): int
     {
+        $strict     = (bool) $this->option('strict');
+        $allPassed  = true;
+
         $this->line('');
         $this->line('  <fg=blue>GlassPortal Health Check</>');
         $this->line('  ' . now()->toIso8601String());
+        if ($strict) {
+            $this->line('  <fg=yellow>Mode: strict</>');
+        }
         $this->line('');
-
-        $allPassed = true;
 
         // 1. App boots (trivially true if we reach this point)
         $this->pass('app.boot', 'Application bootstrap OK');
@@ -59,7 +64,27 @@ class GlassPortalHealthCheck extends Command
             $allPassed = false;
         }
 
-        // 6. Module config loads
+        // 6. Auth tables exist
+        try {
+            $usersOk  = Schema::hasTable('users');
+            $orgsOk   = Schema::hasTable('organizations');
+
+            if ($usersOk && $orgsOk) {
+                $this->pass('db.auth_tables', 'users + organizations tables exist');
+            } else {
+                $missing = implode(', ', array_filter([
+                    $usersOk  ? null : 'users',
+                    $orgsOk   ? null : 'organizations',
+                ]));
+                $this->checkFail('db.auth_tables', "Missing tables: {$missing} — run: php artisan migrate");
+                $allPassed = false;
+            }
+        } catch (\Throwable $e) {
+            $this->checkFail('db.auth_tables', 'Could not check auth tables: ' . $e->getMessage());
+            $allPassed = false;
+        }
+
+        // 7. Module config loads
         try {
             $modules = config('glasshouse.modules', null);
             if (is_array($modules)) {
@@ -73,21 +98,38 @@ class GlassPortalHealthCheck extends Command
             $allPassed = false;
         }
 
-        // 7. GlassBilling connector
+        // 8. GlassBilling connector
         try {
             $health = $billing->health();
             $status = $health['status'];
             $detail = $health['detail'] ?? '';
+            $latency = isset($health['latency_ms']) ? " ({$health['latency_ms']}ms)" : '';
 
             if ($status === 'online') {
-                $this->pass('glassbilling.health', "GlassBilling: online — {$detail}");
+                $this->pass('glassbilling.health', "GlassBilling: online — {$detail}{$latency}");
             } elseif ($status === 'unconfigured') {
-                $this->warn_check('glassbilling.health', 'GlassBilling: not configured (set GLASSBILLING_API_URL + GLASSBILLING_API_TOKEN)');
+                $this->warnCheck('glassbilling.health', 'GlassBilling: not configured (set GLASSBILLING_BASE_URL + GLASSBILLING_API_TOKEN)');
             } else {
-                $this->warn_check('glassbilling.health', "GlassBilling: {$status} — {$detail}");
+                // offline or auth error
+                $httpStatus = $health['http_status'] ?? null;
+                $isAuthError = $httpStatus === 401 || $httpStatus === 403;
+
+                if ($strict) {
+                    $this->checkFail('glassbilling.health', "GlassBilling: {$status} — {$detail}{$latency}");
+                    $allPassed = false;
+                } else {
+                    $this->warnCheck('glassbilling.health', "GlassBilling: {$status} — {$detail}{$latency}");
+                }
+
+                if ($isAuthError) {
+                    $this->warnCheck('glassbilling.auth', 'GlassBilling returned an auth error — verify GLASSBILLING_API_TOKEN');
+                    if ($strict) {
+                        $allPassed = false;
+                    }
+                }
             }
         } catch (\Throwable $e) {
-            $this->warn_check('glassbilling.health', 'GlassBilling: exception — ' . $e->getMessage());
+            $this->warnCheck('glassbilling.health', 'GlassBilling: exception — ' . $e->getMessage());
         }
 
         $this->line('');
@@ -113,7 +155,7 @@ class GlassPortalHealthCheck extends Command
         $this->line("  <fg=red>✗</> <fg=white>{$check}</>  {$message}");
     }
 
-    protected function warn_check(string $check, string $message): void
+    protected function warnCheck(string $check, string $message): void
     {
         $this->line("  <fg=yellow>!</> <fg=white>{$check}</>  {$message}");
     }

@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Admin\BillingApprovalsController;
 use App\Http\Controllers\Admin\CustomersController;
 use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\ModulesController;
@@ -46,11 +47,15 @@ Route::middleware(['auth', 'role:owner,admin,staff,support'])
     ->prefix('admin')
     ->name('admin.')
     ->group(function () {
-        Route::get('/',             [DashboardController::class,   'index'])->name('dashboard');
-        Route::get('/modules',      [ModulesController::class,     'index'])->name('modules');
-        Route::get('/services',     [ServicesController::class,    'index'])->name('services');
-        Route::get('/provisioning', [ProvisioningController::class,'index'])->name('provisioning');
-        Route::get('/customers',    [CustomersController::class,   'index'])->name('customers');
+        Route::get('/',                          [DashboardController::class,       'index'])->name('dashboard');
+        Route::get('/modules',                   [ModulesController::class,         'index'])->name('modules');
+        Route::get('/services',                  [ServicesController::class,        'index'])->name('services');
+        Route::get('/services/{id}',             [ServicesController::class,        'show'])->name('services.show');
+        Route::get('/provisioning',              [ProvisioningController::class,    'index'])->name('provisioning');
+        Route::get('/provisioning/{id}',         [ProvisioningController::class,    'show'])->name('provisioning.show');
+        Route::get('/customers',                 [CustomersController::class,       'index'])->name('customers');
+        Route::get('/billing-approvals',         [BillingApprovalsController::class,'index'])->name('billing-approvals');
+        Route::get('/billing-approvals/{id}',    [BillingApprovalsController::class,'show'])->name('billing-approvals.show');
     });
 
 /*

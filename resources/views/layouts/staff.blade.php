@@ -165,13 +165,16 @@
             <a href="{{ route('admin.provisioning') }}" class="{{ str_starts_with($route, 'admin.provisioning') ? 'active' : '' }}">
                 <span class="icon">⊕</span> Provisioning
             </a>
+            <a href="{{ route('admin.billing-approvals') }}" class="{{ str_starts_with($route, 'admin.billing-approvals') ? 'active' : '' }}">
+                <span class="icon">◈</span> Invoice Approvals
+            </a>
 
             <div class="nav-section">System</div>
             <a href="{{ route('admin.modules') }}" class="{{ str_starts_with($route, 'admin.modules') ? 'active' : '' }}">
                 <span class="icon">⊛</span> Modules
             </a>
             <a href="#" class="{{ $route === 'admin.billing' ? 'active' : '' }}">
-                <span class="icon">◈</span> Billing <span class="sidebar-badge">Phase 4</span>
+                <span class="icon">◈</span> Billing <span class="sidebar-badge">Phase 5</span>
             </a>
             <a href="#" class="{{ $route === 'admin.support' ? 'active' : '' }}">
                 <span class="icon">◎</span> Support <span class="sidebar-badge">Phase 4</span>

@@ -8,9 +8,12 @@
     <p>Here's a summary of your Glasshouse services.</p>
 </div>
 
-@php $offline = ($services['status'] ?? '') === 'offline' || ($services['status'] ?? '') === 'unconfigured'; @endphp
-
-@if($offline)
+@if($noLinkedCustomer ?? false)
+<div class="alert alert-warning" style="margin-bottom:1.5rem">
+    Your account is not yet linked to a GlassBilling customer record.
+    Contact support if you believe this is an error.
+</div>
+@elseif($services === null)
 <div class="alert alert-warning" style="margin-bottom:1.5rem">
     Service data is temporarily unavailable. Please check back shortly.
 </div>
@@ -20,8 +23,8 @@
     <div class="card">
         <div class="card-title">Active Services</div>
         <div class="card-value">
-            @if(!$offline)
-                {{ count(array_filter($services['data'] ?? [], fn($s) => $s['status'] === 'active')) }}
+            @if(is_array($services))
+                {{ count(array_filter($services, fn($s) => ($s['status'] ?? '') === 'active')) }}
             @else
                 —
             @endif
@@ -31,12 +34,12 @@
     <div class="card">
         <div class="card-title">Open Tickets</div>
         <div class="card-value">—</div>
-        <div class="text-sm text-dim" style="margin-top:.25rem">support tickets <small>(Phase 4)</small></div>
+        <div class="text-sm text-dim" style="margin-top:.25rem">support tickets <small>(Phase 5+)</small></div>
     </div>
     <div class="card">
         <div class="card-title">Outstanding Balance</div>
         <div class="card-value">—</div>
-        <div class="text-sm text-dim" style="margin-top:.25rem">invoices <small>(Phase 4)</small></div>
+        <div class="text-sm text-dim" style="margin-top:.25rem">invoices <small>(Phase 5+)</small></div>
     </div>
 </div>
 
@@ -51,19 +54,25 @@
             </tr>
         </thead>
         <tbody>
-            @forelse($services['data'] ?? [] as $svc)
-            <tr>
-                <td style="font-weight:500;color:var(--text-h)">{{ $svc['product_name'] ?? '—' }}</td>
-                <td><span class="badge badge-{{ $svc['status'] ?? 'pending' }}">{{ $svc['status'] ?? '—' }}</span></td>
-                <td class="text-sm text-dim">{{ $svc['created_at'] ?? '—' }}</td>
-            </tr>
-            @empty
+            @if(is_array($services))
+                @forelse($services as $svc)
+                <tr>
+                    <td style="font-weight:500;color:var(--text-h)">{{ $svc['product_name'] ?? '—' }}</td>
+                    <td><span class="badge badge-{{ $svc['status'] ?? 'unknown' }}">{{ $svc['status'] ?? '—' }}</span></td>
+                    <td class="text-sm text-dim">{{ $svc['created_at'] ?? '—' }}</td>
+                </tr>
+                @empty
+                <tr>
+                    <td colspan="3" class="text-dim" style="text-align:center;padding:2rem">No services found.</td>
+                </tr>
+                @endforelse
+            @else
             <tr>
                 <td colspan="3" class="text-dim" style="text-align:center;padding:2rem">
-                    {{ $offline ? 'Unable to load services.' : 'No services yet.' }}
+                    {{ ($noLinkedCustomer ?? false) ? 'No account linkage found.' : 'Unable to load services.' }}
                 </td>
             </tr>
-            @endforelse
+            @endif
         </tbody>
     </table>
 </div>

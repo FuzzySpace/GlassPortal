@@ -5,12 +5,13 @@
 
 @section('content')
 
-@php $offline = ($requests['status'] ?? '') !== 'online'; @endphp
-
-@if($offline)
+@if(!$billingOk)
 <div class="alert alert-warning" style="margin-bottom:1rem">
-    GlassBilling is <strong>{{ $requests['status'] ?? 'offline' }}</strong>.
-    Provisioning request data requires the GlassBilling connector.
+    @if($billingError)
+        {{ $billingError }}
+    @else
+        GlassBilling is not configured. Provisioning data requires the connector.
+    @endif
 </div>
 @endif
 
@@ -23,26 +24,36 @@
                 <th>Product</th>
                 <th>Status</th>
                 <th>Requested</th>
+                <th></th>
             </tr>
         </thead>
         <tbody>
-            @forelse($requests['data'] ?? [] as $req)
+            @forelse($requests as $req)
             <tr>
                 <td class="text-sm text-dim">{{ $req['id'] ?? '—' }}</td>
-                <td>{{ $req['customer_name'] ?? '—' }}</td>
+                <td>{{ $req['customer_name'] ?? $req['customer_id'] ?? '—' }}</td>
                 <td>{{ $req['product_name'] ?? '—' }}</td>
                 <td><span class="badge badge-{{ $req['status'] ?? 'pending' }}">{{ $req['status'] ?? '—' }}</span></td>
                 <td class="text-sm text-dim">{{ $req['created_at'] ?? '—' }}</td>
+                <td>
+                    <a href="{{ route('admin.provisioning.show', $req['id']) }}" style="color:var(--accent);text-decoration:none;font-size:.8125rem">View →</a>
+                </td>
             </tr>
             @empty
             <tr>
-                <td colspan="5" class="text-dim" style="text-align:center;padding:2rem">
-                    {{ $offline ? 'Connect GlassBilling to view provisioning requests.' : 'No pending requests.' }}
+                <td colspan="6" class="text-dim" style="text-align:center;padding:2rem">
+                    {{ $billingOk ? 'No pending requests.' : 'Connect GlassBilling to view provisioning requests.' }}
                 </td>
             </tr>
             @endforelse
         </tbody>
     </table>
 </div>
+
+@if(!empty($meta['total']))
+<div style="margin-top:.75rem;color:var(--text-dim);font-size:.8125rem">
+    Showing {{ count($requests) }} of {{ $meta['total'] }} requests
+</div>
+@endif
 
 @endsection

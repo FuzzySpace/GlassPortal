@@ -13,12 +13,19 @@ class DashboardController extends Controller
 
     public function index(): View
     {
-        $user     = Auth::user();
-        $services = $this->billing->customerServices();
+        $user       = Auth::user();
+        $customerId = $user->organization?->glassbilling_customer_id;
+
+        $services = null;
+        if ($customerId) {
+            $result   = $this->billing->customerServices(['customer_id' => $customerId, 'per_page' => 5]);
+            $services = $result->ok ? ($result->data['data'] ?? []) : [];
+        }
 
         return view('portal.dashboard', [
-            'user'     => $user,
-            'services' => $services,
+            'user'             => $user,
+            'services'         => $services,
+            'noLinkedCustomer' => $customerId === null,
         ]);
     }
 }
