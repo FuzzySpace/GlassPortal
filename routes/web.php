@@ -54,6 +54,7 @@ Route::middleware(['auth', 'role:owner,admin,staff,support'])
         Route::get('/provisioning',              [ProvisioningController::class,    'index'])->name('provisioning');
         Route::get('/provisioning/{id}',         [ProvisioningController::class,    'show'])->name('provisioning.show');
         Route::get('/customers',                 [CustomersController::class,       'index'])->name('customers');
+        Route::get('/customers/{id}',            [CustomersController::class,       'show'])->name('customers.show');
         Route::get('/billing-approvals',         [BillingApprovalsController::class,'index'])->name('billing-approvals');
         Route::get('/billing-approvals/{id}',    [BillingApprovalsController::class,'show'])->name('billing-approvals.show');
     });

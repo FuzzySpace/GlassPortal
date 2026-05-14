@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Enums\UserRole;
+use App\Models\Organization;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
@@ -98,6 +99,48 @@ class AdminRoutesTest extends TestCase
         $customer = User::factory()->create(['role' => UserRole::Customer->value]);
 
         $this->actingAs($customer)->get('/admin')->assertForbidden();
+    }
+
+    public function test_admin_customer_detail_renders_without_glassbilling(): void
+    {
+        $org = Organization::factory()->create();
+
+        $response = $this->actingAs($this->staffUser())->get('/admin/customers/' . $org->id);
+
+        $response->assertStatus(200);
+        $response->assertSeeText($org->name);
+        $response->assertSeeText('no GlassBilling link');
+    }
+
+    public function test_admin_customer_detail_shows_linked_state(): void
+    {
+        Http::fake([
+            'billing.test/api/v1/admin/customers/gb_cust_test' => Http::response([
+                'id' => 'gb_cust_test', 'name' => 'Acme Corp', 'email' => 'billing@acme.test', 'status' => 'active',
+            ], 200),
+            'billing.test/api/v1/admin/customer-services*'      => Http::response(['data' => [], 'meta' => []], 200),
+            'billing.test/api/v1/admin/provisioning-requests*'  => Http::response(['data' => [], 'meta' => []], 200),
+            'billing.test/api/v1/admin/invoice-approvals*'      => Http::response(['data' => [], 'meta' => []], 200),
+        ]);
+
+        config([
+            'glassbilling.base_url' => 'http://billing.test',
+            'glassbilling.token'    => 'test-token',
+        ]);
+
+        $org = Organization::factory()->withGlassBillingId('gb_cust_test')->create();
+
+        $response = $this->actingAs($this->staffUser())->get('/admin/customers/' . $org->id);
+
+        $response->assertStatus(200);
+        $response->assertSeeText('Acme Corp');
+    }
+
+    public function test_admin_customer_detail_returns_404_for_unknown_org(): void
+    {
+        $response = $this->actingAs($this->staffUser())->get('/admin/customers/99999');
+
+        $response->assertStatus(404);
     }
 
     public function test_admin_dashboard_shows_real_data_when_glassbilling_online(): void

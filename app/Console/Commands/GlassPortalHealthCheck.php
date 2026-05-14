@@ -84,6 +84,18 @@ class GlassPortalHealthCheck extends Command
             $allPassed = false;
         }
 
+        // 6b. Customer mapping column
+        try {
+            if (Schema::hasColumn('organizations', 'glassbilling_customer_id')) {
+                $this->pass('db.customer_mapping', 'organizations.glassbilling_customer_id column present');
+            } else {
+                $this->checkFail('db.customer_mapping', 'organizations.glassbilling_customer_id missing — run: php artisan migrate');
+                $allPassed = false;
+            }
+        } catch (\Throwable $e) {
+            $this->warnCheck('db.customer_mapping', 'Could not check customer mapping column: ' . $e->getMessage());
+        }
+
         // 7. Module config loads
         try {
             $modules = config('glasshouse.modules', null);

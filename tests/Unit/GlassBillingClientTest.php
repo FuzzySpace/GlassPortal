@@ -170,4 +170,75 @@ class GlassBillingClientTest extends TestCase
         $this->assertInstanceOf(GlassBillingResult::class, $result);
         $this->assertFalse($result->ok);
     }
+
+    public function test_customers_returns_unconfigured_when_not_set(): void
+    {
+        $client = $this->makeClient();
+
+        $result = $client->customers();
+
+        $this->assertInstanceOf(GlassBillingResult::class, $result);
+        $this->assertFalse($result->ok);
+    }
+
+    public function test_customers_returns_data_on_success(): void
+    {
+        Http::fake([
+            'billing.test/api/v1/admin/customers' => Http::response([
+                'data' => [
+                    ['id' => 'gb_cust_1', 'name' => 'Acme Corp', 'email' => 'billing@acme.test', 'status' => 'active'],
+                ],
+                'meta' => ['total' => 1],
+            ], 200),
+        ]);
+
+        $client = $this->makeClient(['base_url' => 'http://billing.test', 'token' => 'test-token']);
+
+        $result = $client->customers();
+
+        $this->assertTrue($result->ok);
+        $this->assertCount(1, $result->data['data']);
+        $this->assertSame('Acme Corp', $result->data['data'][0]['name']);
+    }
+
+    public function test_customer_returns_unconfigured_when_not_set(): void
+    {
+        $client = $this->makeClient();
+
+        $result = $client->customer('gb_cust_123');
+
+        $this->assertInstanceOf(GlassBillingResult::class, $result);
+        $this->assertFalse($result->ok);
+    }
+
+    public function test_customer_returns_detail_on_success(): void
+    {
+        Http::fake([
+            'billing.test/api/v1/admin/customers/gb_cust_abc' => Http::response([
+                'id' => 'gb_cust_abc', 'name' => 'Test Co', 'email' => 'test@test.test', 'status' => 'active',
+            ], 200),
+        ]);
+
+        $client = $this->makeClient(['base_url' => 'http://billing.test', 'token' => 'test-token']);
+
+        $result = $client->customer('gb_cust_abc');
+
+        $this->assertTrue($result->ok);
+        $this->assertSame('Test Co', $result->data['name']);
+    }
+
+    public function test_customer_returns_failure_on_404(): void
+    {
+        Http::fake([
+            'billing.test/api/v1/admin/customers/gb_cust_missing' => Http::response([], 404),
+        ]);
+
+        $client = $this->makeClient(['base_url' => 'http://billing.test', 'token' => 'test-token']);
+
+        $result = $client->customer('gb_cust_missing');
+
+        $this->assertFalse($result->ok);
+        $this->assertSame(404, $result->status);
+        $this->assertStringContainsString('not found', $result->error ?? '');
+    }
 }
