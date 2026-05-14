@@ -96,13 +96,27 @@ class GlassPortalHealthCheck extends Command
             $this->warnCheck('db.customer_mapping', 'Could not check customer mapping column: ' . $e->getMessage());
         }
 
+        // 6c. Module links table
+        try {
+            if (Schema::hasTable('organization_module_links')) {
+                $this->pass('db.module_links', 'organization_module_links table present');
+            } else {
+                $this->checkFail('db.module_links', 'organization_module_links table missing — run: php artisan migrate');
+                $allPassed = false;
+            }
+        } catch (\Throwable $e) {
+            $this->checkFail('db.module_links', 'Could not check module links table: ' . $e->getMessage());
+            $allPassed = false;
+        }
+
         // 7. Module config loads
         try {
-            $modules = config('glasshouse.modules', null);
-            if (is_array($modules)) {
-                $this->pass('config.modules', count($modules) . ' module(s) registered in config/glasshouse.php');
+            $modules       = config('glasshouse.modules', null);
+            $launchModules = config('glasshouse.launch_modules', null);
+            if (is_array($modules) && is_array($launchModules)) {
+                $this->pass('config.modules', count($modules) . ' connector module(s), ' . count($launchModules) . ' launch module(s) in config/glasshouse.php');
             } else {
-                $this->checkFail('config.modules', 'config/glasshouse.php did not return expected modules array');
+                $this->checkFail('config.modules', 'config/glasshouse.php did not return expected modules arrays');
                 $allPassed = false;
             }
         } catch (\Throwable $e) {

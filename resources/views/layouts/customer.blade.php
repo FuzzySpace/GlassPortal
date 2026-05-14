@@ -87,7 +87,8 @@
             <nav class="top-nav">
                 <a href="{{ route('portal.dashboard') }}" class="{{ $route === 'portal.dashboard' ? 'active' : '' }}">Overview</a>
                 <a href="{{ route('portal.services') }}"  class="{{ $route === 'portal.services'  ? 'active' : '' }}">My Services</a>
-                <a href="#" class="">Invoices <small style="color:var(--text-dim);font-size:.7rem">Phase 4</small></a>
+                <a href="{{ route('portal.modules') }}"   class="{{ $route === 'portal.modules'   ? 'active' : '' }}">Modules</a>
+                <a href="#" class="">Invoices <small style="color:var(--text-dim);font-size:.7rem">Phase 7</small></a>
                 <a href="{{ route('portal.support') }}"   class="{{ $route === 'portal.support'   ? 'active' : '' }}">Support</a>
                 <a href="#">Account</a>
             </nav>
