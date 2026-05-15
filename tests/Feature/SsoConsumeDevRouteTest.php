@@ -1,0 +1,179 @@
+<?php
+
+namespace Tests\Feature;
+
+use App\Enums\UserRole;
+use App\Models\Organization;
+use App\Models\OrganizationModuleLink;
+use App\Models\User;
+use App\Services\Sso\SignedLaunchTokenService;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Tests\TestCase;
+
+class SsoConsumeDevRouteTest extends TestCase
+{
+    use RefreshDatabase;
+
+    private string $secret = 'dev-route-test-secret-long-enough-for-hmac-sha256-testing';
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+        config(['glasshouse_sso.signing_secret'       => $this->secret]);
+        config(['glasshouse_sso.issuer'               => 'glassportal-test']);
+        config(['glasshouse_sso.default_ttl_seconds'  => 60]);
+        config(['glasshouse_sso.max_ttl_seconds'      => 300]);
+        config(['glasshouse_sso.clock_skew_seconds'   => 30]);
+        config(['glasshouse_sso.nonce_cache_ttl_seconds' => 600]);
+        config(['glasshouse_sso.key_id'               => '']);
+        config(['glasshouse_sso.keys'                 => []]);
+    }
+
+    // -------------------------------------------------------------------------
+    // Happy path
+    // -------------------------------------------------------------------------
+
+    public function test_dev_consume_returns_verified_context_for_valid_token(): void
+    {
+        [$link, $user] = $this->fixtures();
+        $token = $this->generateToken($link, $user);
+
+        $response = $this->post("/_dev/sso/consume/{$link->module_key}", ['slt' => $token]);
+
+        $response->assertStatus(200);
+        $response->assertJson(['verified' => true]);
+        $response->assertJsonPath('context.aud', $link->module_key);
+        $response->assertJsonPath('context.sub', (string) $user->id);
+        $response->assertJsonPath('context.email', $user->email);
+    }
+
+    public function test_dev_consume_response_does_not_contain_signing_secret(): void
+    {
+        [$link, $user] = $this->fixtures();
+        $token = $this->generateToken($link, $user);
+
+        $response = $this->post("/_dev/sso/consume/{$link->module_key}", ['slt' => $token]);
+
+        $this->assertStringNotContainsString($this->secret, $response->getContent());
+    }
+
+    public function test_dev_consume_response_does_not_contain_raw_token(): void
+    {
+        [$link, $user] = $this->fixtures();
+        $token = $this->generateToken($link, $user);
+
+        $response = $this->post("/_dev/sso/consume/{$link->module_key}", ['slt' => $token]);
+
+        // The raw token should not appear anywhere in the response body
+        $this->assertStringNotContainsString($token, $response->getContent());
+    }
+
+    // -------------------------------------------------------------------------
+    // Missing token
+    // -------------------------------------------------------------------------
+
+    public function test_dev_consume_returns_422_when_slt_missing(): void
+    {
+        $this->post('/_dev/sso/consume/glasspanel', [])
+            ->assertStatus(422);
+    }
+
+    // -------------------------------------------------------------------------
+    // Invalid / tampered token
+    // -------------------------------------------------------------------------
+
+    public function test_dev_consume_returns_401_for_tampered_token(): void
+    {
+        [$link, $user] = $this->fixtures();
+        $token  = $this->generateToken($link, $user);
+        $parts  = explode('.', $token);
+        $parts[1] .= 'tampered';
+        $tampered = implode('.', $parts);
+
+        $this->post("/_dev/sso/consume/{$link->module_key}", ['slt' => $tampered])
+            ->assertStatus(401);
+    }
+
+    public function test_dev_consume_returns_401_for_wrong_module_key(): void
+    {
+        [$link, $user] = $this->fixtures();
+        $token = $this->generateToken($link, $user);
+
+        $this->post('/_dev/sso/consume/wrong-module', ['slt' => $token])
+            ->assertStatus(401);
+    }
+
+    public function test_dev_consume_returns_401_on_replay(): void
+    {
+        [$link, $user] = $this->fixtures();
+        $token = $this->generateToken($link, $user);
+
+        $this->post("/_dev/sso/consume/{$link->module_key}", ['slt' => $token])
+            ->assertStatus(200);
+
+        $this->post("/_dev/sso/consume/{$link->module_key}", ['slt' => $token])
+            ->assertStatus(401);
+    }
+
+    public function test_dev_consume_returns_401_for_malformed_token(): void
+    {
+        $this->post('/_dev/sso/consume/glasspanel', ['slt' => 'not.a.valid.four.parts'])
+            ->assertStatus(401);
+    }
+
+    // -------------------------------------------------------------------------
+    // Env guard — route must not exist in production
+    // -------------------------------------------------------------------------
+
+    public function test_dev_route_is_registered_in_testing_environment(): void
+    {
+        $routes = app('router')->getRoutes();
+        $this->assertNotNull(
+            $routes->getByName('dev.sso.consume'),
+            'dev.sso.consume route must be registered in testing environment'
+        );
+    }
+
+    // -------------------------------------------------------------------------
+    // KID support round-trip via dev route
+    // -------------------------------------------------------------------------
+
+    public function test_dev_consume_works_with_kid_in_token(): void
+    {
+        config(['glasshouse_sso.key_id' => 'v1']);
+        config(['glasshouse_sso.keys'   => ['v1' => $this->secret]]);
+
+        [$link, $user] = $this->fixtures();
+        $token = $this->generateToken($link, $user);
+
+        $this->post("/_dev/sso/consume/{$link->module_key}", ['slt' => $token])
+            ->assertStatus(200)
+            ->assertJson(['verified' => true]);
+    }
+
+    // -------------------------------------------------------------------------
+    // Helpers
+    // -------------------------------------------------------------------------
+
+    private function fixtures(): array
+    {
+        $org  = Organization::factory()->create();
+        $link = OrganizationModuleLink::factory()
+            ->withLaunchUrl('https://panel.test')
+            ->forModule('glasspanel', 'GlassPanel')
+            ->create(['organization_id' => $org->id, 'auth_mode' => 'signed_launch', 'status' => 'active']);
+        $user = User::factory()->create([
+            'role'            => UserRole::Customer->value,
+            'organization_id' => $org->id,
+            'email'           => 'devtest@example.test',
+            'name'            => 'Dev Test User',
+        ]);
+        return [$link, $user];
+    }
+
+    private function generateToken(OrganizationModuleLink $link, User $user): string
+    {
+        $svc = new SignedLaunchTokenService();
+        return $svc->generate($link, $user)['token'];
+    }
+}

@@ -13,7 +13,8 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withMiddleware(function (Middleware $middleware) {
         $middleware->alias([
-            'role' => \App\Http\Middleware\EnsureUserHasRole::class,
+            'role'                 => \App\Http\Middleware\EnsureUserHasRole::class,
+            'verify.signed.launch' => \App\Http\Middleware\VerifySignedModuleLaunch::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {

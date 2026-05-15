@@ -194,6 +194,23 @@ class ModuleLaunchService
     }
 
     // =========================================================================
+    // Rate limit audit (Phase 9)
+    // =========================================================================
+
+    /**
+     * Record a rate_limited event for a user who exceeded the launch throttle.
+     * Called by the controller before the service's normal launch flow.
+     */
+    public function recordRateLimited(
+        OrganizationModuleLink $link,
+        User $user,
+        string $ip = '',
+        string $userAgent = '',
+    ): void {
+        $this->recordEvent($link, $user, 'rate_limited', 'Rate limit exceeded', $ip, $userAgent);
+    }
+
+    // =========================================================================
     // Signed launch (Phase 8)
     // =========================================================================
 

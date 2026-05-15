@@ -189,6 +189,48 @@ class GlassPortalHealthCheck extends Command
             $this->warnCheck('config.signed_launch', 'Could not check signed launch secret: ' . $e->getMessage());
         }
 
+        // 7e. Key ID (Phase 9) — informational only
+        try {
+            $keyId = config('glasshouse_sso.key_id', '');
+            if ($keyId !== '') {
+                $this->pass('sso.key_id', "GLASSPORTAL_SIGNED_LAUNCH_KEY_ID is set: {$keyId}");
+            } else {
+                $this->warnCheck('sso.key_id', 'GLASSPORTAL_SIGNED_LAUNCH_KEY_ID not set — tokens issued without kid (single-secret mode)');
+            }
+        } catch (\Throwable $e) {
+            $this->warnCheck('sso.key_id', 'Could not check key_id: ' . $e->getMessage());
+        }
+
+        // 7f. Dev SSO consumer route (Phase 9) — only expected in local/testing
+        try {
+            $routes    = app('router')->getRoutes();
+            $devRoute  = $routes->getByName('dev.sso.consume');
+            $isDevEnv  = app()->environment('local', 'testing');
+
+            if ($devRoute !== null && $isDevEnv) {
+                $this->pass('routes.sso_consumer_dev', 'dev.sso.consume route registered (local/testing only)');
+            } elseif ($devRoute !== null && ! $isDevEnv) {
+                $this->checkFail('routes.sso_consumer_dev', 'dev.sso.consume route is registered in a non-dev environment — check routes/web.php');
+                $allPassed = false;
+            } else {
+                $this->warnCheck('routes.sso_consumer_dev', 'dev.sso.consume route not registered (expected only in local/testing)');
+            }
+        } catch (\Throwable $e) {
+            $this->warnCheck('routes.sso_consumer_dev', 'Could not check dev SSO consumer route: ' . $e->getMessage());
+        }
+
+        // 7g. Launch rate limit config (Phase 9)
+        try {
+            $limit = (int) config('glasshouse_sso.rate_limit_per_minute', 20);
+            if ($limit > 0) {
+                $this->pass('rate_limits.module_launch', "Portal launch rate limit: {$limit} requests/minute/user/link");
+            } else {
+                $this->warnCheck('rate_limits.module_launch', 'GLASSPORTAL_LAUNCH_RATE_LIMIT is 0 — rate limiting is effectively disabled');
+            }
+        } catch (\Throwable $e) {
+            $this->warnCheck('rate_limits.module_launch', 'Could not check launch rate limit config: ' . $e->getMessage());
+        }
+
         // 8. GlassBilling connector
         try {
             $health = $billing->health();
