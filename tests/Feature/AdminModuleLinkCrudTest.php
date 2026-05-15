@@ -14,15 +14,14 @@ class AdminModuleLinkCrudTest extends TestCase
 {
     use RefreshDatabase;
 
-    
-
     protected function setUp(): void
     {
         parent::setUp();
 
         $this->withoutMiddleware(ValidateCsrfToken::class);
     }
-private function adminUser(): User
+
+    private function adminUser(): User
     {
         return User::factory()->create(['role' => UserRole::Admin->value]);
     }
