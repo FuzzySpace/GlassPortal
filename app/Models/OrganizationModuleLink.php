@@ -105,6 +105,11 @@ class OrganizationModuleLink extends Model
         return in_array($this->auth_mode, self::FUTURE_SSO_MODES, true);
     }
 
+    public function isSignedLaunchMode(): bool
+    {
+        return $this->auth_mode === 'signed_launch';
+    }
+
     public function isSafeLaunchMode(): bool
     {
         return in_array($this->auth_mode, self::SAFE_LAUNCH_MODES, true);

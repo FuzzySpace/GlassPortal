@@ -20,8 +20,17 @@
 <div class="alert alert-info" style="margin-bottom:1rem">
     Module links record which Glasshouse modules are linked to each organization.
     Credentials are never stored here — only account identifiers and routing metadata.
-    SSO modes (shared_session, signed_launch, oauth) are Phase 8+ work.
+    <code>signed_launch</code> is operational in Phase 8 and requires <code>GLASSPORTAL_SIGNED_LAUNCH_SECRET</code>.
+    <code>shared_session</code> and <code>oauth</code> are Phase 9+ stubs.
 </div>
+
+@if(empty(config('glasshouse_sso.signing_secret')))
+<div class="alert" style="margin-bottom:1rem;background:rgba(210,153,34,.1);border:1px solid var(--warning);padding:.75rem 1rem;border-radius:.5rem">
+    <strong style="color:var(--warning)">⚠ Signed launch secret not configured.</strong>
+    <span class="text-sm text-dim"> Any active link with <code>auth_mode=signed_launch</code> will fail on launch.
+    Set <code>GLASSPORTAL_SIGNED_LAUNCH_SECRET</code> in your environment.</span>
+</div>
+@endif
 
 {{-- Filters --}}
 <form method="GET" style="display:flex;gap:.75rem;margin-bottom:1rem;flex-wrap:wrap">
@@ -70,7 +79,9 @@
                 <td><span class="badge badge-{{ $link->status }}">{{ $link->status }}</span></td>
                 <td>
                     <code class="text-sm">{{ $link->auth_mode }}</code>
-                    @if($link->isSsoMode())
+                    @if($link->isSignedLaunchMode())
+                        <span style="color:var(--accent);font-size:.75rem"> ⊛ signed</span>
+                    @elseif($link->isSsoMode())
                         <span class="text-dim text-sm"> (Phase 7+)</span>
                     @endif
                 </td>

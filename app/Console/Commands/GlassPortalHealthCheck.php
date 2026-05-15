@@ -164,6 +164,31 @@ class GlassPortalHealthCheck extends Command
             $this->warnCheck('config.launch_modules', 'Could not verify launch module keys: ' . $e->getMessage());
         }
 
+        // 7d. Signed launch secret
+        try {
+            $secret = config('glasshouse_sso.signing_secret', '');
+            // Detect active signed_launch links only if DB is available
+            $hasSignedLinks = false;
+            try {
+                $hasSignedLinks = \App\Models\OrganizationModuleLink::where('auth_mode', 'signed_launch')
+                    ->where('status', 'active')
+                    ->exists();
+            } catch (\Throwable) {
+                // DB not ready — skip active-link check
+            }
+
+            if ($secret !== '') {
+                $this->pass('config.signed_launch', 'GLASSPORTAL_SIGNED_LAUNCH_SECRET is configured');
+            } elseif ($hasSignedLinks) {
+                $this->checkFail('config.signed_launch', 'GLASSPORTAL_SIGNED_LAUNCH_SECRET is not set but active signed_launch links exist — launches will fail');
+                $allPassed = false;
+            } else {
+                $this->warnCheck('config.signed_launch', 'GLASSPORTAL_SIGNED_LAUNCH_SECRET is not set (no active signed_launch links detected — set before enabling signed_launch links)');
+            }
+        } catch (\Throwable $e) {
+            $this->warnCheck('config.signed_launch', 'Could not check signed launch secret: ' . $e->getMessage());
+        }
+
         // 8. GlassBilling connector
         try {
             $health = $billing->health();

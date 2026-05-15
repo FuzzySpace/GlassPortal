@@ -17,16 +17,19 @@ class ModuleLaunchController extends Controller
     /**
      * Process a module launch attempt for the authenticated customer.
      *
-     * Security: verifies the link belongs to the user's organization before
-     * delegating to ModuleLaunchService (which also re-checks ownership).
-     * Every attempt — allowed, denied, or stubbed — is recorded as a
-     * ModuleLaunchEvent by the service.
+     * Security:
+     * - HTTP-layer org ownership check fires first (403 before any service call).
+     * - Service re-checks ownership as defense in depth.
+     * - Every outcome (allowed, denied, stubbed, signed_launch_issued, failed)
+     *   is recorded as a ModuleLaunchEvent.
+     * - For signed_launch: the POST handoff view receives the token so it can
+     *   be submitted via form. The signing secret never appears in any response.
      */
     public function launch(Request $request, OrganizationModuleLink $moduleLink): RedirectResponse|View
     {
         $user = Auth::user();
 
-        // HTTP-layer ownership check: deny before the service even runs
+        // HTTP-layer ownership check: hard 403 before service runs
         if ((int) $moduleLink->organization_id !== (int) $user->organization_id) {
             abort(403, 'You do not have access to this module link.');
         }
@@ -38,14 +41,31 @@ class ModuleLaunchController extends Controller
             $request->userAgent() ?? '',
         );
 
-        return match ($result['outcome']) {
-            'allowed'  => redirect()->away($result['redirect_url']),
-            'stubbed'  => view('portal.module-launch-stub', [
+        $outcome = $result['outcome'];
+
+        if ($outcome === 'allowed') {
+            return redirect()->away($result['redirect_url']);
+        }
+
+        if ($outcome === 'signed_launch') {
+            // POST-form handoff: token in form body, not in URL
+            return view('portal.module-launch-handoff', [
+                'link'                => $moduleLink,
+                'launchUrl'           => $result['redirect_url'],
+                'expiresAt'           => $result['expires_at'],
+                '_token_for_handoff'  => $result['token'],
+            ]);
+        }
+
+        if ($outcome === 'stubbed') {
+            return view('portal.module-launch-stub', [
                 'link'   => $moduleLink,
                 'reason' => $result['reason'],
-            ]),
-            default    => redirect()->route('portal.modules')
-                ->with('error', $result['reason'] ?? 'Launch unavailable.'),
-        };
+            ]);
+        }
+
+        // denied or failed
+        return redirect()->route('portal.modules')
+            ->with('error', $result['reason'] ?? 'Launch unavailable.');
     }
 }

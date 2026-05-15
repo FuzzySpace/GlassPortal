@@ -5,41 +5,45 @@ namespace App\Services;
 use App\Models\ModuleLaunchEvent;
 use App\Models\OrganizationModuleLink;
 use App\Models\User;
+use App\Services\Sso\SignedLaunchTokenService;
 
 /**
  * Resolves safe launch metadata and orchestrates audited launch attempts.
  *
  * Security boundaries:
  * - Never exposes credentials, tokens, or session cookies to the browser.
- * - Launch URLs are only returned for auth modes that do not require
- *   server-side token exchange (local, standalone, api_token).
- * - SSO auth modes (shared_session, signed_launch, oauth) are reserved for
- *   Phase 8+. They return a stubbed response with no URL.
+ * - Phase 8: signed_launch is operational — generates HMAC-signed tokens.
+ *   The signing secret is server-side only and NEVER included in any response.
+ * - shared_session and oauth remain stubs (Phase 9+).
  * - Every launch attempt — regardless of outcome — creates a ModuleLaunchEvent.
+ * - Audit metadata stores only: jti, expires_at, module_key, auth_mode. Never the token.
  */
 class ModuleLaunchService
 {
-    /** Auth modes that may produce a browser-safe launch URL. */
+    /** Auth modes where a plain external URL is safe to issue directly. */
     private const SAFE_LAUNCH_MODES = OrganizationModuleLink::SAFE_LAUNCH_MODES;
 
-    /** Auth modes reserved for future SSO implementation. */
-    private const FUTURE_SSO_MODES = OrganizationModuleLink::FUTURE_SSO_MODES;
+    /** Auth modes still reserved for future implementation. */
+    private const STUB_SSO_MODES = ['shared_session', 'oauth'];
 
     // =========================================================================
-    // Launch attempt (audited)
+    // Audited launch attempt
     // =========================================================================
 
     /**
      * Attempt a module launch on behalf of a user.
      *
      * Validates organization ownership, active status, and auth mode, then
-     * records a ModuleLaunchEvent for every outcome.
+     * records a ModuleLaunchEvent for every outcome. Never leaks secrets.
      *
      * @return array{
-     *   outcome: 'allowed'|'denied'|'stubbed',
+     *   outcome: 'allowed'|'signed_launch'|'denied'|'stubbed',
      *   redirect_url: string|null,
+     *   token: string|null,
      *   auth_mode: string,
      *   reason: string|null,
+     *   jti: string|null,
+     *   expires_at: int|null,
      * }
      */
     public function attemptLaunch(
@@ -60,19 +64,27 @@ class ModuleLaunchService
             return $this->denied("This module link is {$link->status} and cannot be launched.");
         }
 
-        // SSO modes — safe stub, no redirect
-        if ($link->isSsoMode()) {
-            $this->recordEvent($link, $user, 'stubbed', "SSO mode: {$link->auth_mode}", $ip, $userAgent);
+        // Phase 8: signed_launch is now operational
+        if ($link->isSignedLaunchMode()) {
+            return $this->handleSignedLaunch($link, $user, $ip, $userAgent);
+        }
+
+        // Remaining stub SSO modes (shared_session, oauth → Phase 9+)
+        if (in_array($link->auth_mode, self::STUB_SSO_MODES, true)) {
+            $this->recordEvent($link, $user, 'stubbed', "SSO stub: {$link->auth_mode}", $ip, $userAgent);
             return [
                 'outcome'      => 'stubbed',
                 'redirect_url' => null,
+                'token'        => null,
                 'auth_mode'    => $link->auth_mode,
                 'reason'       => ucfirst(str_replace('_', ' ', $link->auth_mode))
                     . ' authentication is not yet available. This feature is planned for a future release.',
+                'jti'          => null,
+                'expires_at'   => null,
             ];
         }
 
-        // Safe mode — issue redirect URL if configured
+        // Safe external URL modes
         $url = $link->external_url ?? null;
         if (empty($url)) {
             $this->recordEvent($link, $user, 'denied', 'No external URL configured', $ip, $userAgent);
@@ -83,17 +95,21 @@ class ModuleLaunchService
         return [
             'outcome'      => 'allowed',
             'redirect_url' => $url,
+            'token'        => null,
             'auth_mode'    => $link->auth_mode,
             'reason'       => null,
+            'jti'          => null,
+            'expires_at'   => null,
         ];
     }
 
     // =========================================================================
-    // Read-only metadata (no audit trail — display only)
+    // Read-only display metadata (no audit trail)
     // =========================================================================
 
     /**
-     * Build safe launch metadata for a single module link (no audit event).
+     * Build safe display metadata for a single module link.
+     * Does NOT generate tokens — that happens only on actual launch attempt.
      *
      * @return array{
      *   module_key: string,
@@ -102,14 +118,16 @@ class ModuleLaunchService
      *   auth_mode: string,
      *   launch_url: string|null,
      *   setup_required: bool,
+     *   can_launch: bool,
      *   warnings: string[],
      *   link_id: int|null,
      * }
      */
     public function getLaunchData(OrganizationModuleLink $link): array
     {
-        $warnings = [];
+        $warnings  = [];
         $launchUrl = $this->safeLaunchUrl($link, $warnings);
+        $canLaunch = $this->canLaunch($link);
 
         return [
             'module_key'     => $link->module_key,
@@ -118,14 +136,13 @@ class ModuleLaunchService
             'auth_mode'      => $link->auth_mode,
             'launch_url'     => $launchUrl,
             'setup_required' => $this->isSetupRequired($link),
+            'can_launch'     => $canLaunch,
             'warnings'       => $warnings,
             'link_id'        => $link->id,
         ];
     }
 
     /**
-     * Build launch metadata for every link belonging to an organization.
-     *
      * @param  iterable<OrganizationModuleLink>  $links
      * @return array<int, array>
      */
@@ -139,9 +156,8 @@ class ModuleLaunchService
     }
 
     /**
-     * Merge config-registered modules with the org's persisted links to
-     * produce a unified module list. Modules with no link record are shown
-     * with status = 'not_linked'.
+     * Merge config-registered modules with the org's persisted links.
+     * Unlinked modules appear with status = 'not_linked'.
      *
      * @param  iterable<OrganizationModuleLink>  $links
      * @return array<string, array>  keyed by module_key
@@ -166,6 +182,7 @@ class ModuleLaunchService
                     'auth_mode'      => 'standalone',
                     'launch_url'     => null,
                     'setup_required' => true,
+                    'can_launch'     => false,
                     'warnings'       => [],
                     'link_id'        => null,
                 ],
@@ -174,6 +191,58 @@ class ModuleLaunchService
         }
 
         return $merged;
+    }
+
+    // =========================================================================
+    // Signed launch (Phase 8)
+    // =========================================================================
+
+    private function handleSignedLaunch(
+        OrganizationModuleLink $link,
+        User $user,
+        string $ip,
+        string $userAgent,
+    ): array {
+        if (empty($link->external_url)) {
+            $this->recordEvent($link, $user, 'failed', 'No launch endpoint configured', $ip, $userAgent);
+            return $this->denied(
+                'No launch endpoint is configured for this module link. Contact your administrator.'
+            );
+        }
+
+        $secret = config('glasshouse_sso.signing_secret', '');
+        if ($secret === '') {
+            $this->recordEvent($link, $user, 'failed', 'Signing secret not configured', $ip, $userAgent);
+            return $this->denied(
+                'Signed launch is not available — system configuration is incomplete. Contact your administrator.'
+            );
+        }
+
+        try {
+            $tokenService = app(SignedLaunchTokenService::class);
+            $result       = $tokenService->generate($link, $user);
+
+            // Audit only safe fields — never the token value or signing secret
+            $this->recordEvent($link, $user, 'signed_launch_issued', null, $ip, $userAgent, [
+                'jti'        => $result['jti'],
+                'expires_at' => $result['expires_at'],
+            ]);
+
+            return [
+                'outcome'      => 'signed_launch',
+                'redirect_url' => $link->external_url,
+                'token'        => $result['token'],
+                'auth_mode'    => 'signed_launch',
+                'reason'       => null,
+                'jti'          => $result['jti'],
+                'expires_at'   => $result['expires_at'],
+            ];
+        } catch (\Throwable $e) {
+            $this->recordEvent($link, $user, 'failed', 'Token generation error', $ip, $userAgent);
+            return $this->denied(
+                'Signed launch could not be completed. Contact your administrator.'
+            );
+        }
     }
 
     // =========================================================================
@@ -187,6 +256,7 @@ class ModuleLaunchService
         ?string $reason,
         string $ip,
         string $userAgent,
+        ?array $metadata = null,
     ): void {
         ModuleLaunchEvent::create([
             'organization_id' => $link->organization_id,
@@ -198,7 +268,7 @@ class ModuleLaunchService
             'reason'          => $reason,
             'ip_address'      => $ip ?: null,
             'user_agent'      => $userAgent ?: null,
-            'metadata'        => null,
+            'metadata'        => $metadata,
         ]);
     }
 
@@ -207,11 +277,18 @@ class ModuleLaunchService
         return [
             'outcome'      => 'denied',
             'redirect_url' => null,
+            'token'        => null,
             'auth_mode'    => '',
             'reason'       => $reason,
+            'jti'          => null,
+            'expires_at'   => null,
         ];
     }
 
+    /**
+     * Returns a direct browser-safe launch URL (standalone/local/api_token only).
+     * signed_launch is handled separately — the URL is constructed at launch time.
+     */
     private function safeLaunchUrl(OrganizationModuleLink $link, array &$warnings): ?string
     {
         if ($link->status !== 'active') {
@@ -219,14 +296,25 @@ class ModuleLaunchService
             return null;
         }
 
-        if (in_array($link->auth_mode, self::FUTURE_SSO_MODES, true)) {
+        // signed_launch: no static launch URL — token is generated on demand
+        if ($link->isSignedLaunchMode()) {
+            if (empty($link->external_url)) {
+                $warnings[] = 'No launch endpoint configured for this signed launch link.';
+            } elseif (empty(config('glasshouse_sso.signing_secret', ''))) {
+                $warnings[] = 'Signed launch is not configured on this portal — contact your administrator.';
+            }
+            return null;
+        }
+
+        // Stub SSO modes
+        if (in_array($link->auth_mode, self::STUB_SSO_MODES, true)) {
             $warnings[] = ucfirst(str_replace('_', ' ', $link->auth_mode))
-                . ' authentication is not yet implemented (Phase 8+).';
+                . ' authentication is not yet implemented (Phase 9+).';
             return null;
         }
 
         if (empty($link->external_url)) {
-            if (! in_array($link->auth_mode, ['local'], true)) {
+            if ($link->auth_mode !== 'local') {
                 $warnings[] = 'No launch URL configured for this module link.';
             }
             return null;
@@ -235,13 +323,46 @@ class ModuleLaunchService
         return $link->external_url;
     }
 
+    /**
+     * True when the module can be launched now (no setup required).
+     * For signed_launch: requires external_url AND signing_secret.
+     * For standalone: requires external_url.
+     */
+    private function canLaunch(OrganizationModuleLink $link): bool
+    {
+        if ($link->status !== 'active') {
+            return false;
+        }
+
+        if ($link->isSignedLaunchMode()) {
+            return ! empty($link->external_url)
+                && ! empty(config('glasshouse_sso.signing_secret', ''));
+        }
+
+        if (in_array($link->auth_mode, self::STUB_SSO_MODES, true)) {
+            return false;
+        }
+
+        // Safe modes: can launch if URL is present (or local which needs no URL)
+        if ($link->auth_mode === 'local') {
+            return true;
+        }
+
+        return ! empty($link->external_url);
+    }
+
     private function isSetupRequired(OrganizationModuleLink $link): bool
     {
         if ($link->status !== 'active') {
             return true;
         }
 
-        if (in_array($link->auth_mode, self::FUTURE_SSO_MODES, true)) {
+        if ($link->isSignedLaunchMode()) {
+            return empty($link->external_url)
+                || empty(config('glasshouse_sso.signing_secret', ''));
+        }
+
+        if (in_array($link->auth_mode, self::STUB_SSO_MODES, true)) {
             return true;
         }
 
