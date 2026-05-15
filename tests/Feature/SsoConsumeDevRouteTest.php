@@ -7,15 +7,15 @@ use App\Models\Organization;
 use App\Models\OrganizationModuleLink;
 use App\Models\User;
 use App\Services\Sso\SignedLaunchTokenService;
+use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Config;
-use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
-use Illuminate\Foundation\Http\Middleware\VerifyCsrfToken;
 use Tests\TestCase;
 
 class SsoConsumeDevRouteTest extends TestCase
 {
     use RefreshDatabase;
+
 
     private string $secret = 'dev-route-test-secret-long-enough-for-hmac-sha256-testing';
 
@@ -23,22 +23,26 @@ class SsoConsumeDevRouteTest extends TestCase
     {
         parent::setUp();
 
-        Config::set('glasshouse_sso.signing_secret', $this->secret);
-        config(['glasshouse_sso.signing_secret' => $this->secret]);
+        Config::set('glasshouse_sso.signed_launch.secret', $this->secret);
+        config(['glasshouse_sso.signed_launch.secret' => $this->secret]);
 
         app()->forgetInstance(SignedLaunchTokenService::class);
 
-        // Laravel 11 uses ValidateCsrfToken, but some skeletons / upgrades still expose VerifyCsrfToken.
-        // Disable only CSRF here so auth/role/module middleware stays under test.
-        if (class_exists(ValidateCsrfToken::class)) {
-            $this->withoutMiddleware(ValidateCsrfToken::class);
-        }
-
-        if (class_exists(VerifyCsrfToken::class)) {
-            $this->withoutMiddleware(VerifyCsrfToken::class);
-        }
+        $this->withoutMiddleware(ValidateCsrfToken::class);
     }
 
+        Config::set('glasshouse_sso.signing_secret', $this->secret);
+        Config::set('glasshouse_sso.signed_launch.secret', $this->secret);
+
+        config([
+            'glasshouse_sso.signing_secret' => $this->secret,
+            'glasshouse_sso.signed_launch.secret' => $this->secret,
+        ]);
+
+        app()->forgetInstance(SignedLaunchTokenService::class);
+
+        $this->withoutMiddleware(ValidateCsrfToken::class);
+    }
     // -------------------------------------------------------------------------
     // Happy path
     // -------------------------------------------------------------------------
