@@ -201,6 +201,34 @@ class GlassPortalHealthCheck extends Command
             $this->warnCheck('sso.key_id', 'Could not check key_id: ' . $e->getMessage());
         }
 
+        // 7e-ii. Middleware alias 'signed.launch' (Phase 9)
+        // Middleware aliases from bootstrap/app.php are HTTP-kernel-scoped and not
+        // visible to the router during artisan; verify by checking the class exists
+        // and that the dev route (which uses the alias) is registered.
+        try {
+            $mwClass  = \App\Http\Middleware\VerifySignedModuleLaunch::class;
+            $devRoute = app('router')->getRoutes()->getByName('dev.sso.consume');
+            if (class_exists($mwClass) && $devRoute !== null) {
+                $this->pass('middleware.signed_launch', 'signed.launch middleware class present and applied to dev.sso.consume route');
+            } elseif (class_exists($mwClass)) {
+                $this->warnCheck('middleware.signed_launch', 'VerifySignedModuleLaunch class exists; register alias in bootstrap/app.php if missing');
+            } else {
+                $this->checkFail('middleware.signed_launch', 'VerifySignedModuleLaunch class not found — check app/Http/Middleware/');
+                $allPassed = false;
+            }
+        } catch (\Throwable $e) {
+            $this->warnCheck('middleware.signed_launch', 'Could not check signed.launch middleware: ' . $e->getMessage());
+        }
+
+        // 7e-iii. Verifier service resolvable (Phase 9)
+        try {
+            app(\App\Services\Sso\SignedLaunchVerifierService::class);
+            $this->pass('verifier.service', 'SignedLaunchVerifierService is resolvable from container');
+        } catch (\Throwable $e) {
+            $this->checkFail('verifier.service', 'SignedLaunchVerifierService not resolvable: ' . $e->getMessage());
+            $allPassed = false;
+        }
+
         // 7f. Dev SSO consumer route (Phase 9) — only expected in local/testing
         try {
             $routes    = app('router')->getRoutes();

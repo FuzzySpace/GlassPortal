@@ -23,6 +23,8 @@ readonly class VerifiedLaunchContext
         public int    $expiresAt,
         public string $nonce,
         public string $jti,
+        /** Full decoded payload for advanced inspection — never includes signing secret. */
+        public array  $rawClaims = [],
     ) {}
 
     public static function fromPayload(array $payload): self
@@ -40,6 +42,7 @@ readonly class VerifiedLaunchContext
             expiresAt:    (int)    ($payload['exp'] ?? 0),
             nonce:        (string) ($payload['nonce'] ?? ''),
             jti:          (string) ($payload['jti'] ?? ''),
+            rawClaims:    $payload,
         );
     }
 

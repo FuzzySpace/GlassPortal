@@ -2,49 +2,40 @@
 
 namespace App\Http\Controllers\Dev;
 
+use App\Data\Sso\VerifiedLaunchContext;
 use App\Http\Controllers\Controller;
-use App\Services\Sso\SignedLaunchVerifierService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 /**
  * Local/testing SSO consumer endpoint.
  *
- * Simulates a downstream module receiving a signed launch POST. Verifies the
- * SLP token and returns the verified identity claims as JSON so developers can
- * inspect what a real module would receive.
+ * Simulates a downstream module receiving a signed launch POST. The
+ * signed.launch middleware verifies the token before this controller runs,
+ * attaching a VerifiedLaunchContext to request attributes under "signed_launch".
  *
  * Security:
- * - Only registered under APP_ENV=local or APP_ENV=testing (see routes/web.php).
- * - Never returns the raw token or signing secret.
- * - Returns 401 on any token failure so integration tests can assert the error path.
- * - Consumes the JTI on successful verification — a second call with the same token
- *   will return 401 (replay detected), exactly as a real module would behave.
+ * - Only registered under local/testing or GLASSPORTAL_ENABLE_DEV_SSO_CONSUME=true.
+ * - Raw token and signing secret are never returned — only safe identity fields.
+ * - Replay protection is enforced by the middleware (JTI consumed on first use).
  */
 class SsoConsumeController extends Controller
 {
-    public function __construct(private SignedLaunchVerifierService $verifier) {}
-
     public function consume(Request $request, string $moduleKey): JsonResponse
     {
-        $token = (string) $request->input('slt', '');
-
-        if ($token === '') {
-            return response()->json(['error' => 'Missing slt parameter.'], 422);
-        }
-
-        try {
-            $context = $this->verifier->verify($token, $moduleKey);
-        } catch (\InvalidArgumentException $e) {
-            return response()->json([
-                'error'  => 'Token verification failed.',
-                'detail' => $e->getMessage(),
-            ], 401);
-        }
+        /** @var VerifiedLaunchContext $context */
+        $context = $request->attributes->get('signed_launch');
 
         return response()->json([
-            'verified' => true,
-            'context'  => $context->toArray(),
+            'ok'              => true,
+            'module_key'      => $context->audience,
+            'organization_id' => $context->orgId,
+            'user_id'         => $context->userId,
+            'user_email'      => $context->email,
+            'user_name'       => $context->name,
+            'role'            => $context->role,
+            'jti'             => $context->jti,
+            'expires_at'      => $context->expiresAt,
         ]);
     }
 }

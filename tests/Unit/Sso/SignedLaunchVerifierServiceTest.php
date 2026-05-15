@@ -113,6 +113,21 @@ class SignedLaunchVerifierServiceTest extends TestCase
         $this->verifier->verify($result['token'], 'wrong-module');
     }
 
+    public function test_expired_token_throws(): void
+    {
+        config(['glasshouse_sso.default_ttl_seconds' => -120]); // issued 120s in the past
+        config(['glasshouse_sso.clock_skew_seconds'  => 0]);
+        $svc     = new SignedLaunchTokenService();
+        $verifier = new SignedLaunchVerifierService($svc);
+
+        [$link, $user] = $this->fixtures();
+        $result = $svc->generate($link, $user);
+
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('expired');
+        $verifier->verify($result['token'], $link->module_key);
+    }
+
     public function test_replay_throws_on_second_verify(): void
     {
         [$link, $user] = $this->fixtures();

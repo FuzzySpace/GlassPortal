@@ -108,6 +108,19 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Dev SSO Consume Route — Phase 9
+    |--------------------------------------------------------------------------
+    |
+    | Enables POST /_dev/sso/consume/{moduleKey} outside of local/testing envs.
+    | The route is always available in local and testing environments.
+    | Set GLASSPORTAL_ENABLE_DEV_SSO_CONSUME=true in staging to enable it there.
+    | Never enable in production.
+    |
+    */
+    'enable_dev_sso_consume' => (bool) env('GLASSPORTAL_ENABLE_DEV_SSO_CONSUME', false),
+
+    /*
+    |--------------------------------------------------------------------------
     | Portal Launch Rate Limit — Phase 9
     |--------------------------------------------------------------------------
     |

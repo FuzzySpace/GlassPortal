@@ -19,14 +19,14 @@ class SsoConsumeDevRouteTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        config(['glasshouse_sso.signing_secret'       => $this->secret]);
-        config(['glasshouse_sso.issuer'               => 'glassportal-test']);
-        config(['glasshouse_sso.default_ttl_seconds'  => 60]);
-        config(['glasshouse_sso.max_ttl_seconds'      => 300]);
-        config(['glasshouse_sso.clock_skew_seconds'   => 30]);
+        config(['glasshouse_sso.signing_secret'          => $this->secret]);
+        config(['glasshouse_sso.issuer'                  => 'glassportal-test']);
+        config(['glasshouse_sso.default_ttl_seconds'     => 60]);
+        config(['glasshouse_sso.max_ttl_seconds'         => 300]);
+        config(['glasshouse_sso.clock_skew_seconds'      => 30]);
         config(['glasshouse_sso.nonce_cache_ttl_seconds' => 600]);
-        config(['glasshouse_sso.key_id'               => '']);
-        config(['glasshouse_sso.keys'                 => []]);
+        config(['glasshouse_sso.key_id'                  => '']);
+        config(['glasshouse_sso.keys'                    => []]);
     }
 
     // -------------------------------------------------------------------------
@@ -41,11 +41,28 @@ class SsoConsumeDevRouteTest extends TestCase
         $response = $this->post("/_dev/sso/consume/{$link->module_key}", ['slt' => $token]);
 
         $response->assertStatus(200);
-        $response->assertJson(['verified' => true]);
-        $response->assertJsonPath('context.aud', $link->module_key);
-        $response->assertJsonPath('context.sub', (string) $user->id);
-        $response->assertJsonPath('context.email', $user->email);
+        $response->assertJson(['ok' => true]);
+        $response->assertJsonPath('module_key', $link->module_key);
+        $response->assertJsonPath('user_id', (string) $user->id);
+        $response->assertJsonPath('user_email', $user->email);
+        $response->assertJsonPath('user_name', $user->name);
+        $response->assertJsonPath('role', UserRole::Customer->value);
+        $response->assertJsonStructure(['ok', 'module_key', 'organization_id', 'user_id', 'user_email', 'user_name', 'role', 'jti', 'expires_at']);
     }
+
+    public function test_dev_consume_accepts_launch_token_field(): void
+    {
+        [$link, $user] = $this->fixtures();
+        $token = $this->generateToken($link, $user);
+
+        $this->post("/_dev/sso/consume/{$link->module_key}", ['launch_token' => $token])
+            ->assertStatus(200)
+            ->assertJson(['ok' => true]);
+    }
+
+    // -------------------------------------------------------------------------
+    // Security — response must not leak secrets or raw token
+    // -------------------------------------------------------------------------
 
     public function test_dev_consume_response_does_not_contain_signing_secret(): void
     {
@@ -64,23 +81,28 @@ class SsoConsumeDevRouteTest extends TestCase
 
         $response = $this->post("/_dev/sso/consume/{$link->module_key}", ['slt' => $token]);
 
-        // The raw token should not appear anywhere in the response body
         $this->assertStringNotContainsString($token, $response->getContent());
     }
 
     // -------------------------------------------------------------------------
-    // Missing token
+    // Method enforcement
     // -------------------------------------------------------------------------
 
-    public function test_dev_consume_returns_422_when_slt_missing(): void
+    public function test_get_request_returns_405(): void
     {
-        $this->post('/_dev/sso/consume/glasspanel', [])
-            ->assertStatus(422);
+        $this->get('/_dev/sso/consume/glasspanel')
+            ->assertStatus(405);
     }
 
     // -------------------------------------------------------------------------
-    // Invalid / tampered token
+    // Missing / invalid token
     // -------------------------------------------------------------------------
+
+    public function test_dev_consume_returns_401_when_token_missing(): void
+    {
+        $this->post('/_dev/sso/consume/glasspanel', [])
+            ->assertStatus(401);
+    }
 
     public function test_dev_consume_returns_401_for_tampered_token(): void
     {
@@ -94,13 +116,13 @@ class SsoConsumeDevRouteTest extends TestCase
             ->assertStatus(401);
     }
 
-    public function test_dev_consume_returns_401_for_wrong_module_key(): void
+    public function test_dev_consume_returns_403_for_wrong_module_key(): void
     {
         [$link, $user] = $this->fixtures();
         $token = $this->generateToken($link, $user);
 
         $this->post('/_dev/sso/consume/wrong-module', ['slt' => $token])
-            ->assertStatus(401);
+            ->assertStatus(403);
     }
 
     public function test_dev_consume_returns_401_on_replay(): void
@@ -122,7 +144,7 @@ class SsoConsumeDevRouteTest extends TestCase
     }
 
     // -------------------------------------------------------------------------
-    // Env guard — route must not exist in production
+    // Env guard — route must be registered in testing environment
     // -------------------------------------------------------------------------
 
     public function test_dev_route_is_registered_in_testing_environment(): void
@@ -148,7 +170,7 @@ class SsoConsumeDevRouteTest extends TestCase
 
         $this->post("/_dev/sso/consume/{$link->module_key}", ['slt' => $token])
             ->assertStatus(200)
-            ->assertJson(['verified' => true]);
+            ->assertJson(['ok' => true]);
     }
 
     // -------------------------------------------------------------------------

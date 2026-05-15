@@ -8,21 +8,26 @@ use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
 
 /**
- * Middleware for use by downstream modules receiving a signed launch POST.
+ * Verifies a signed launch token posted to a module endpoint.
  *
- * Usage in a module's routes file:
- *   Route::post('/sso/receive', SomeController::class)
- *       ->middleware('verify.signed.launch:module_key');
+ * Token field resolution (in order):
+ *   1. POST body field "launch_token" (Phase 9 standard)
+ *   2. POST body field "slt" (Phase 8 backward compatibility)
  *
- * On success: attaches a VerifiedLaunchContext to the request attributes
- *   under the key 'sso_context'. The next handler can retrieve it with:
- *   $context = $request->attributes->get('sso_context');
+ * Module key resolution (in order):
+ *   1. Route parameter "moduleKey" (parameterized routes)
+ *   2. Middleware argument, e.g. ->middleware('signed.launch:glasspanel')
  *
- * On failure: returns 401 JSON — never 302, to avoid leaking destination URLs.
+ * On success:
+ *   Attaches VerifiedLaunchContext to request attributes under "signed_launch".
+ *   Also attaches under "sso_context" for Phase 8 backward compatibility.
  *
- * Security: the signed token in $_POST['slt'] is consumed on verify().
- * A second request with the same token receives 401 (replay detected).
- * The signing secret never appears in any response.
+ * On failure:
+ *   401 — missing or invalid token (bad signature, expired, replayed, malformed)
+ *   403 — audience mismatch (valid token but wrong module)
+ *   500 — module key not resolvable (configuration error)
+ *
+ * Security: the raw token is never logged, stored, or echoed in any response.
  */
 class VerifySignedModuleLaunch
 {
@@ -30,25 +35,38 @@ class VerifySignedModuleLaunch
 
     public function handle(Request $request, Closure $next, string $moduleKey = ''): Response
     {
-        $token = (string) $request->input('slt', '');
-
+        // Token: prefer launch_token (Phase 9), fall back to slt (Phase 8)
+        $token = (string) $request->input('launch_token', '');
         if ($token === '') {
-            return response()->json(['error' => 'Missing signed launch token (slt).'], 401);
+            $token = (string) $request->input('slt', '');
         }
 
-        if ($moduleKey === '') {
-            return response()->json(['error' => 'Module key not configured in middleware.'], 500);
+        if ($token === '') {
+            return response()->json(['error' => 'Missing signed launch token.'], 401);
+        }
+
+        // Module key: prefer route parameter, fall back to middleware argument
+        $resolvedKey = (string) ($request->route('moduleKey') ?? '');
+        if ($resolvedKey === '') {
+            $resolvedKey = $moduleKey;
+        }
+
+        if ($resolvedKey === '') {
+            return response()->json(['error' => 'Module key not configured.'], 500);
         }
 
         try {
-            $context = $this->verifier->verify($token, $moduleKey);
-            $request->attributes->set('sso_context', $context);
+            $context = $this->verifier->verify($token, $resolvedKey);
         } catch (\InvalidArgumentException $e) {
-            return response()->json([
-                'error'  => 'Token verification failed.',
-                'detail' => $e->getMessage(),
-            ], 401);
+            $msg = $e->getMessage();
+            if (str_contains($msg, 'audience')) {
+                return response()->json(['error' => 'Token audience mismatch.'], 403);
+            }
+            return response()->json(['error' => 'Token verification failed.'], 401);
         }
+
+        $request->attributes->set('signed_launch', $context);
+        $request->attributes->set('sso_context', $context); // Phase 8 compat
 
         return $next($request);
     }

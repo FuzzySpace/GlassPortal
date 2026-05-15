@@ -102,7 +102,8 @@ Route::middleware(['auth', 'role:customer'])
 |
 */
 
-if (app()->environment('local', 'testing')) {
+if (app()->environment('local', 'testing') || config('glasshouse_sso.enable_dev_sso_consume', false)) {
     Route::post('/_dev/sso/consume/{moduleKey}', [SsoConsumeController::class, 'consume'])
+        ->middleware('signed.launch')
         ->name('dev.sso.consume');
 }

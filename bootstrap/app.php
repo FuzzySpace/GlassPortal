@@ -14,6 +14,7 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware) {
         $middleware->alias([
             'role'                 => \App\Http\Middleware\EnsureUserHasRole::class,
+            'signed.launch'        => \App\Http\Middleware\VerifySignedModuleLaunch::class,
             'verify.signed.launch' => \App\Http\Middleware\VerifySignedModuleLaunch::class,
         ]);
     })
