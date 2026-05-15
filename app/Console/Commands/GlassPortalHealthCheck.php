@@ -109,6 +109,19 @@ class GlassPortalHealthCheck extends Command
             $allPassed = false;
         }
 
+        // 6d. Module launch events table
+        try {
+            if (Schema::hasTable('module_launch_events')) {
+                $this->pass('db.module_launch_events', 'module_launch_events table present');
+            } else {
+                $this->checkFail('db.module_launch_events', 'module_launch_events table missing — run: php artisan migrate');
+                $allPassed = false;
+            }
+        } catch (\Throwable $e) {
+            $this->checkFail('db.module_launch_events', 'Could not check module_launch_events table: ' . $e->getMessage());
+            $allPassed = false;
+        }
+
         // 7. Module config loads
         try {
             $modules       = config('glasshouse.modules', null);
@@ -122,6 +135,33 @@ class GlassPortalHealthCheck extends Command
         } catch (\Throwable $e) {
             $this->checkFail('config.modules', 'Error loading module config: ' . $e->getMessage());
             $allPassed = false;
+        }
+
+        // 7b. Launch module route registered
+        try {
+            $routes = app('router')->getRoutes();
+            if ($routes->getByName('portal.module.launch') !== null) {
+                $this->pass('routes.module_launch', 'portal.module.launch route registered');
+            } else {
+                $this->checkFail('routes.module_launch', 'portal.module.launch route not found — check routes/web.php');
+                $allPassed = false;
+            }
+        } catch (\Throwable $e) {
+            $this->warnCheck('routes.module_launch', 'Could not verify module launch route: ' . $e->getMessage());
+        }
+
+        // 7c. Launch module config keys
+        try {
+            $launchModules = config('glasshouse.launch_modules', []);
+            $requiredKeys  = ['glassbilling', 'glasspanel', 'aria', 'dns', 'mail', 'support', 'infrastructure'];
+            $missing       = array_diff($requiredKeys, array_keys($launchModules));
+            if (empty($missing)) {
+                $this->pass('config.launch_modules', 'All ' . count($requiredKeys) . ' expected launch module keys present');
+            } else {
+                $this->warnCheck('config.launch_modules', 'Missing launch module keys: ' . implode(', ', $missing));
+            }
+        } catch (\Throwable $e) {
+            $this->warnCheck('config.launch_modules', 'Could not verify launch module keys: ' . $e->getMessage());
         }
 
         // 8. GlassBilling connector

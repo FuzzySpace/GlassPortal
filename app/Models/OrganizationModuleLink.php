@@ -2,9 +2,11 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 /**
@@ -23,6 +25,21 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 class OrganizationModuleLink extends Model
 {
     use HasFactory, SoftDeletes;
+
+    public const AUTH_MODES = [
+        'local',
+        'standalone',
+        'api_token',
+        'shared_session',
+        'signed_launch',
+        'oauth',
+    ];
+
+    public const SAFE_LAUNCH_MODES = ['local', 'standalone', 'api_token'];
+
+    public const FUTURE_SSO_MODES = ['shared_session', 'signed_launch', 'oauth'];
+
+    public const STATUSES = ['active', 'inactive', 'pending', 'error'];
 
     protected $fillable = [
         'organization_id',
@@ -44,10 +61,39 @@ class OrganizationModuleLink extends Model
         ];
     }
 
+    // -------------------------------------------------------------------------
+    // Relationships
+
     public function organization(): BelongsTo
     {
         return $this->belongsTo(Organization::class);
     }
+
+    public function launchEvents(): HasMany
+    {
+        return $this->hasMany(ModuleLaunchEvent::class, 'module_link_id');
+    }
+
+    // -------------------------------------------------------------------------
+    // Scopes
+
+    public function scopeActive(Builder $query): Builder
+    {
+        return $query->where('status', 'active');
+    }
+
+    public function scopeForOrganization(Builder $query, int $organizationId): Builder
+    {
+        return $query->where('organization_id', $organizationId);
+    }
+
+    public function scopeForModule(Builder $query, string $moduleKey): Builder
+    {
+        return $query->where('module_key', $moduleKey);
+    }
+
+    // -------------------------------------------------------------------------
+    // Helpers
 
     public function isActive(): bool
     {
@@ -56,6 +102,11 @@ class OrganizationModuleLink extends Model
 
     public function isSsoMode(): bool
     {
-        return in_array($this->auth_mode, ['shared_session', 'signed_launch', 'oauth'], true);
+        return in_array($this->auth_mode, self::FUTURE_SSO_MODES, true);
+    }
+
+    public function isSafeLaunchMode(): bool
+    {
+        return in_array($this->auth_mode, self::SAFE_LAUNCH_MODES, true);
     }
 }
