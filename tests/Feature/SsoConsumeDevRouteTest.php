@@ -7,15 +7,14 @@ use App\Models\Organization;
 use App\Models\OrganizationModuleLink;
 use App\Models\User;
 use App\Services\Sso\SignedLaunchTokenService;
+use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Config;
-use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
 use Tests\TestCase;
 
 class SsoConsumeDevRouteTest extends TestCase
 {
     use RefreshDatabase;
-
 
     private string $secret = 'dev-route-test-secret-long-enough-for-hmac-sha256-testing';
 
@@ -25,16 +24,14 @@ class SsoConsumeDevRouteTest extends TestCase
 
         Config::set('glasshouse_sso.signing_secret', $this->secret);
         Config::set('glasshouse_sso.signed_launch.secret', $this->secret);
-
-        config([
-            'glasshouse_sso.signing_secret' => $this->secret,
-            'glasshouse_sso.signed_launch.secret' => $this->secret,
-        ]);
+        config(['glasshouse_sso.signing_secret' => $this->secret]);
+        config(['glasshouse_sso.signed_launch.secret' => $this->secret]);
 
         app()->forgetInstance(SignedLaunchTokenService::class);
 
         $this->withoutMiddleware(ValidateCsrfToken::class);
     }
+
     // -------------------------------------------------------------------------
     // Happy path
     // -------------------------------------------------------------------------
@@ -64,6 +61,36 @@ class SsoConsumeDevRouteTest extends TestCase
         $this->post("/_dev/sso/consume/{$link->module_key}", ['launch_token' => $token])
             ->assertStatus(200)
             ->assertJson(['ok' => true]);
+    }
+
+    public function test_dev_consume_accepts_signed_launch_token_field(): void
+    {
+        [$link, $user] = $this->fixtures();
+        $token = $this->generateToken($link, $user);
+
+        $this->post("/_dev/sso/consume/{$link->module_key}", ['signed_launch_token' => $token])
+            ->assertStatus(200)
+            ->assertJson(['ok' => true]);
+    }
+
+    public function test_token_in_query_string_is_rejected(): void
+    {
+        [$link, $user] = $this->fixtures();
+        $token = $this->generateToken($link, $user);
+
+        // Token in URL query string must be rejected — it would appear in server logs.
+        $this->post("/_dev/sso/consume/{$link->module_key}?slt={$token}", [])
+            ->assertStatus(400);
+    }
+
+    public function test_token_in_query_string_returns_reason(): void
+    {
+        [$link, $user] = $this->fixtures();
+        $token = $this->generateToken($link, $user);
+
+        $this->post("/_dev/sso/consume/{$link->module_key}?signed_launch_token={$token}", [])
+            ->assertStatus(400)
+            ->assertJsonPath('reason', 'query_string_token');
     }
 
     // -------------------------------------------------------------------------
@@ -147,6 +174,28 @@ class SsoConsumeDevRouteTest extends TestCase
     {
         $this->post('/_dev/sso/consume/glasspanel', ['slt' => 'not.a.valid.four.parts'])
             ->assertStatus(401);
+    }
+
+    // -------------------------------------------------------------------------
+    // Error response shape
+    // -------------------------------------------------------------------------
+
+    public function test_error_response_includes_reason_field(): void
+    {
+        $this->post('/_dev/sso/consume/glasspanel', [])
+            ->assertStatus(401)
+            ->assertJsonStructure(['error', 'reason'])
+            ->assertJsonPath('reason', 'missing_token');
+    }
+
+    public function test_wrong_audience_error_includes_reason(): void
+    {
+        [$link, $user] = $this->fixtures();
+        $token = $this->generateToken($link, $user);
+
+        $this->post('/_dev/sso/consume/wrong-module', ['slt' => $token])
+            ->assertStatus(403)
+            ->assertJsonPath('reason', 'wrong_audience');
     }
 
     // -------------------------------------------------------------------------
