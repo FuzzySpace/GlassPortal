@@ -15,12 +15,17 @@
 </div>
 @endif
 
-{{-- SSO notice --}}
+@if(session('error'))
+<div class="alert" style="margin-bottom:1rem;background:rgba(248,81,73,.12);border:1px solid var(--danger);padding:.75rem 1rem;border-radius:.5rem;color:var(--danger)">
+    {{ session('error') }}
+</div>
+@endif
+
 <div class="alert alert-info" style="margin-bottom:1.5rem">
     <strong>One-login vision:</strong>
     Future phases will enable seamless single sign-on across all linked modules.
     Currently, modules using <em>standalone</em> or <em>local</em> auth require
-    separate login credentials. The launch button will open the module in a new tab.
+    separate login credentials. Launch opens the module in a new tab.
 </div>
 
 <div style="display:grid;gap:1rem;grid-template-columns:repeat(auto-fill,minmax(300px,1fr))">
@@ -32,6 +37,8 @@
         $setup    = $module['setup_required'] ?? true;
         $warnings = $module['warnings'] ?? [];
         $authMode = $module['auth_mode'] ?? 'standalone';
+        $isSso    = in_array($authMode, ['shared_session', 'signed_launch', 'oauth']);
+        $linkId   = $module['link_id'] ?? null;
         $icon     = config("glasshouse.launch_modules.{$key}.icon", '⊕');
     @endphp
     <div class="card" style="display:flex;flex-direction:column;gap:.75rem">
@@ -64,6 +71,9 @@
 
         <div style="display:flex;align-items:center;gap:.5rem;flex-wrap:wrap">
             <span class="text-dim text-sm">Auth: <code>{{ $authMode }}</code></span>
+            @if($isSso)
+                <span class="text-dim text-sm">(Phase 8+)</span>
+            @endif
         </div>
 
         @foreach($warnings as $warning)
@@ -73,15 +83,25 @@
         <div style="margin-top:auto;padding-top:.5rem;border-top:1px solid var(--border)">
             @if(!$linked)
                 <span class="text-sm text-dim">Not linked to your account — contact support.</span>
-            @elseif($setup)
+            @elseif($isSso && $linkId)
+                {{-- SSO stub — routes through launch controller for audit logging --}}
                 <span class="text-sm text-dim" style="color:var(--warning)">Setup required — contact support.</span>
-            @elseif($hasUrl)
-                <a href="{{ $module['launch_url'] }}"
-                   target="_blank"
-                   rel="noopener noreferrer"
+                <div style="margin-top:.5rem">
+                    <a href="{{ route('portal.module.launch', $linkId) }}"
+                       style="display:inline-block;padding:.35rem .7rem;background:var(--surface);border:1px solid var(--border);color:var(--text-dim);border-radius:.375rem;font-size:.8rem;text-decoration:none">
+                        SSO Setup →
+                    </a>
+                </div>
+                <div class="text-sm text-dim" style="margin-top:.35rem">Single sign-on available in a future release (Phase 7+).</div>
+            @elseif($hasUrl && $linkId)
+                {{-- Audited launch redirect. The raw URL is in data-url for test verification. --}}
+                <a href="{{ route('portal.module.launch', $linkId) }}"
+                   data-url="{{ $module['launch_url'] }}"
                    style="display:inline-block;padding:.4rem .9rem;background:var(--accent-d);color:#fff;border-radius:.375rem;font-size:.875rem;font-weight:500;text-decoration:none">
                     Launch →
                 </a>
+            @elseif($setup)
+                <span class="text-sm text-dim" style="color:var(--warning)">Setup required — contact support.</span>
             @else
                 <span class="text-sm text-dim">No launch URL configured.</span>
             @endif

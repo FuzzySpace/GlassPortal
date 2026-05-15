@@ -2,30 +2,98 @@
 
 namespace App\Services;
 
+use App\Models\ModuleLaunchEvent;
 use App\Models\OrganizationModuleLink;
+use App\Models\User;
 
 /**
- * Returns safe launch metadata for a module link.
+ * Resolves safe launch metadata and orchestrates audited launch attempts.
  *
  * Security boundaries:
- * - Never exposes credentials, tokens, or session cookies.
+ * - Never exposes credentials, tokens, or session cookies to the browser.
  * - Launch URLs are only returned for auth modes that do not require
- *   server-side token exchange (local, standalone).
+ *   server-side token exchange (local, standalone, api_token).
  * - SSO auth modes (shared_session, signed_launch, oauth) are reserved for
- *   future implementation. They return a null launch_url and a warning.
- * - api_token mode: the token lives server-side only; the launch URL may be
- *   returned but no token is included in the browser-facing response.
+ *   Phase 8+. They return a stubbed response with no URL.
+ * - Every launch attempt — regardless of outcome — creates a ModuleLaunchEvent.
  */
 class ModuleLaunchService
 {
-    /** Auth modes that may produce a browser-safe launch URL in Phase 6. */
-    private const SAFE_LAUNCH_MODES = ['local', 'standalone', 'api_token'];
+    /** Auth modes that may produce a browser-safe launch URL. */
+    private const SAFE_LAUNCH_MODES = OrganizationModuleLink::SAFE_LAUNCH_MODES;
 
     /** Auth modes reserved for future SSO implementation. */
-    private const FUTURE_SSO_MODES = ['shared_session', 'signed_launch', 'oauth'];
+    private const FUTURE_SSO_MODES = OrganizationModuleLink::FUTURE_SSO_MODES;
+
+    // =========================================================================
+    // Launch attempt (audited)
+    // =========================================================================
 
     /**
-     * Build safe launch metadata for a single module link.
+     * Attempt a module launch on behalf of a user.
+     *
+     * Validates organization ownership, active status, and auth mode, then
+     * records a ModuleLaunchEvent for every outcome.
+     *
+     * @return array{
+     *   outcome: 'allowed'|'denied'|'stubbed',
+     *   redirect_url: string|null,
+     *   auth_mode: string,
+     *   reason: string|null,
+     * }
+     */
+    public function attemptLaunch(
+        OrganizationModuleLink $link,
+        User $user,
+        string $ip = '',
+        string $userAgent = '',
+    ): array {
+        // Defense-in-depth: verify org ownership even if controller already checked
+        if ((int) $link->organization_id !== (int) $user->organization_id) {
+            $this->recordEvent($link, $user, 'denied', 'Organization mismatch', $ip, $userAgent);
+            return $this->denied('You do not have access to this module link.');
+        }
+
+        // Must be active
+        if (! $link->isActive()) {
+            $this->recordEvent($link, $user, 'denied', "Link is {$link->status}", $ip, $userAgent);
+            return $this->denied("This module link is {$link->status} and cannot be launched.");
+        }
+
+        // SSO modes — safe stub, no redirect
+        if ($link->isSsoMode()) {
+            $this->recordEvent($link, $user, 'stubbed', "SSO mode: {$link->auth_mode}", $ip, $userAgent);
+            return [
+                'outcome'      => 'stubbed',
+                'redirect_url' => null,
+                'auth_mode'    => $link->auth_mode,
+                'reason'       => ucfirst(str_replace('_', ' ', $link->auth_mode))
+                    . ' authentication is not yet available. This feature is planned for a future release.',
+            ];
+        }
+
+        // Safe mode — issue redirect URL if configured
+        $url = $link->external_url ?? null;
+        if (empty($url)) {
+            $this->recordEvent($link, $user, 'denied', 'No external URL configured', $ip, $userAgent);
+            return $this->denied('No launch URL is configured for this module link. Contact your administrator.');
+        }
+
+        $this->recordEvent($link, $user, 'allowed', null, $ip, $userAgent);
+        return [
+            'outcome'      => 'allowed',
+            'redirect_url' => $url,
+            'auth_mode'    => $link->auth_mode,
+            'reason'       => null,
+        ];
+    }
+
+    // =========================================================================
+    // Read-only metadata (no audit trail — display only)
+    // =========================================================================
+
+    /**
+     * Build safe launch metadata for a single module link (no audit event).
      *
      * @return array{
      *   module_key: string,
@@ -35,12 +103,12 @@ class ModuleLaunchService
      *   launch_url: string|null,
      *   setup_required: bool,
      *   warnings: string[],
+     *   link_id: int|null,
      * }
      */
     public function getLaunchData(OrganizationModuleLink $link): array
     {
         $warnings = [];
-
         $launchUrl = $this->safeLaunchUrl($link, $warnings);
 
         return [
@@ -51,6 +119,7 @@ class ModuleLaunchService
             'launch_url'     => $launchUrl,
             'setup_required' => $this->isSetupRequired($link),
             'warnings'       => $warnings,
+            'link_id'        => $link->id,
         ];
     }
 
@@ -98,6 +167,7 @@ class ModuleLaunchService
                     'launch_url'     => null,
                     'setup_required' => true,
                     'warnings'       => [],
+                    'link_id'        => null,
                 ],
                 $linked[$key] ?? []
             );
@@ -106,7 +176,41 @@ class ModuleLaunchService
         return $merged;
     }
 
-    // -------------------------------------------------------------------------
+    // =========================================================================
+    // Internal helpers
+    // =========================================================================
+
+    private function recordEvent(
+        OrganizationModuleLink $link,
+        User $user,
+        string $eventType,
+        ?string $reason,
+        string $ip,
+        string $userAgent,
+    ): void {
+        ModuleLaunchEvent::create([
+            'organization_id' => $link->organization_id,
+            'user_id'         => $user->id,
+            'module_link_id'  => $link->id,
+            'module_key'      => $link->module_key,
+            'auth_mode'       => $link->auth_mode,
+            'event_type'      => $eventType,
+            'reason'          => $reason,
+            'ip_address'      => $ip ?: null,
+            'user_agent'      => $userAgent ?: null,
+            'metadata'        => null,
+        ]);
+    }
+
+    private function denied(string $reason): array
+    {
+        return [
+            'outcome'      => 'denied',
+            'redirect_url' => null,
+            'auth_mode'    => '',
+            'reason'       => $reason,
+        ];
+    }
 
     private function safeLaunchUrl(OrganizationModuleLink $link, array &$warnings): ?string
     {
@@ -117,7 +221,7 @@ class ModuleLaunchService
 
         if (in_array($link->auth_mode, self::FUTURE_SSO_MODES, true)) {
             $warnings[] = ucfirst(str_replace('_', ' ', $link->auth_mode))
-                . ' authentication is not yet implemented (Phase 7+).';
+                . ' authentication is not yet implemented (Phase 8+).';
             return null;
         }
 

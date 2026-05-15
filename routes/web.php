@@ -9,6 +9,7 @@ use App\Http\Controllers\Admin\ProvisioningController;
 use App\Http\Controllers\Admin\ServicesController;
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Portal\DashboardController as PortalDashboardController;
+use App\Http\Controllers\Portal\ModuleLaunchController;
 use App\Http\Controllers\Portal\ModulesController as PortalModulesController;
 use App\Http\Controllers\Portal\ServicesController as PortalServicesController;
 use App\Http\Controllers\Portal\SupportController;
@@ -51,7 +52,15 @@ Route::middleware(['auth', 'role:owner,admin,staff,support'])
     ->group(function () {
         Route::get('/',                          [DashboardController::class,    'index'])->name('dashboard');
         Route::get('/modules',                   [ModulesController::class,      'index'])->name('modules');
+
+        // Module link CRUD (except show — detail not needed; index covers it)
         Route::get('/module-links',              [ModuleLinksController::class,  'index'])->name('module-links');
+        Route::get('/module-links/create',       [ModuleLinksController::class,  'create'])->name('module-links.create');
+        Route::post('/module-links',             [ModuleLinksController::class,  'store'])->name('module-links.store');
+        Route::get('/module-links/{moduleLink}/edit',   [ModuleLinksController::class, 'edit'])->name('module-links.edit');
+        Route::patch('/module-links/{moduleLink}',      [ModuleLinksController::class, 'update'])->name('module-links.update');
+        Route::delete('/module-links/{moduleLink}',     [ModuleLinksController::class, 'destroy'])->name('module-links.destroy');
+
         Route::get('/services',                  [ServicesController::class,     'index'])->name('services');
         Route::get('/services/{id}',             [ServicesController::class,     'show'])->name('services.show');
         Route::get('/provisioning',              [ProvisioningController::class, 'index'])->name('provisioning');
@@ -76,4 +85,7 @@ Route::middleware(['auth', 'role:customer'])
         Route::get('/services', [PortalServicesController::class,  'index'])->name('services');
         Route::get('/modules',  [PortalModulesController::class,   'index'])->name('modules');
         Route::get('/support',  [SupportController::class,         'index'])->name('support');
+
+        // Audited launch — GET so the browser can open in a new tab if needed
+        Route::get('/modules/{moduleLink}/launch', [ModuleLaunchController::class, 'launch'])->name('module.launch');
     });

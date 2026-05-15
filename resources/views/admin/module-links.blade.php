@@ -7,12 +7,20 @@
 
 <div style="margin-bottom:1rem;display:flex;justify-content:space-between;align-items:center">
     <a href="{{ route('admin.modules') }}" style="color:var(--accent);text-decoration:none;font-size:.875rem">← Module Registry</a>
+    <a href="{{ route('admin.module-links.create') }}"
+       style="display:inline-block;padding:.35rem .85rem;background:var(--accent-d);color:#fff;border-radius:.375rem;font-size:.875rem;font-weight:500;text-decoration:none">
+        + Create Link
+    </a>
 </div>
+
+@if(session('success'))
+<div class="alert alert-info" style="margin-bottom:1rem;color:var(--success)">{{ session('success') }}</div>
+@endif
 
 <div class="alert alert-info" style="margin-bottom:1rem">
     Module links record which Glasshouse modules are linked to each organization.
     Credentials are never stored here — only account identifiers and routing metadata.
-    SSO modes (shared_session, signed_launch, oauth) are Phase 7+ work.
+    SSO modes (shared_session, signed_launch, oauth) are Phase 8+ work.
 </div>
 
 {{-- Filters --}}
@@ -44,6 +52,7 @@
                 <th>External Account</th>
                 <th>Last Seen</th>
                 <th>Updated</th>
+                <th></th>
             </tr>
         </thead>
         <tbody>
@@ -68,12 +77,27 @@
                 <td class="text-sm text-dim">{{ $link->external_account_id ?? '—' }}</td>
                 <td class="text-sm text-dim">{{ $link->last_seen_at?->diffForHumans() ?? '—' }}</td>
                 <td class="text-sm text-dim">{{ $link->updated_at->format('Y-m-d') }}</td>
+                <td style="white-space:nowrap">
+                    <a href="{{ route('admin.module-links.edit', $link) }}"
+                       style="color:var(--accent);font-size:.8rem;text-decoration:none">Edit</a>
+                    &nbsp;
+                    <form method="POST" action="{{ route('admin.module-links.destroy', $link) }}"
+                          style="display:inline"
+                          onsubmit="return confirm('Disable this module link?')">
+                        @csrf
+                        @method('DELETE')
+                        <button type="submit"
+                                style="background:none;border:none;color:var(--danger);font-size:.8rem;cursor:pointer;padding:0">
+                            Disable
+                        </button>
+                    </form>
+                </td>
             </tr>
             @empty
             <tr>
-                <td colspan="7" class="text-dim" style="text-align:center;padding:2rem">
+                <td colspan="8" class="text-dim" style="text-align:center;padding:2rem">
                     No module links recorded yet.
-                    Links are created when organizations are provisioned into modules.
+                    <a href="{{ route('admin.module-links.create') }}" style="color:var(--accent)">Create the first one.</a>
                 </td>
             </tr>
             @endforelse

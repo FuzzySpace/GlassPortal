@@ -64,7 +64,8 @@ class PortalModulesTest extends TestCase
         $response = $this->actingAs($user)->get('/portal/modules');
 
         $response->assertStatus(200);
-        $response->assertSee('https://panel.test');
+        // Launch now routes through the audited endpoint; the raw URL appears in data-url
+        $response->assertSee('data-url="https://panel.test"', false);
         $response->assertSeeText('Launch');
     }
 
