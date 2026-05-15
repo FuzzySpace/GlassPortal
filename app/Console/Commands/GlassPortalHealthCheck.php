@@ -229,6 +229,27 @@ class GlassPortalHealthCheck extends Command
             $allPassed = false;
         }
 
+        // 7e-iv. ModuleSignedLaunchVerifier resolvable (Phase 10)
+        try {
+            app(\App\Services\Sso\ModuleSignedLaunchVerifier::class);
+            $this->pass('sso.module_verifier', 'ModuleSignedLaunchVerifier is resolvable from container');
+        } catch (\Throwable $e) {
+            $this->checkFail('sso.module_verifier', 'ModuleSignedLaunchVerifier not resolvable: ' . $e->getMessage());
+            $allPassed = false;
+        }
+
+        // 7e-v. Replay-protection cache usable (Phase 10)
+        try {
+            $modVerifier = app(\App\Services\Sso\ModuleSignedLaunchVerifier::class);
+            if ($modVerifier->isCacheUsable()) {
+                $this->pass('sso.replay_cache', 'JTI replay-protection cache is writable and readable');
+            } else {
+                $this->warnCheck('sso.replay_cache', 'Cache probe failed — replay protection is degraded; check CACHE_STORE');
+            }
+        } catch (\Throwable $e) {
+            $this->warnCheck('sso.replay_cache', 'Could not probe replay cache: ' . $e->getMessage());
+        }
+
         // 7f. Dev SSO consumer route (Phase 9) — only expected in local/testing
         try {
             $routes    = app('router')->getRoutes();
