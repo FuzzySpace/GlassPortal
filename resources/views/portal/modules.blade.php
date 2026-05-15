@@ -22,24 +22,27 @@
 @endif
 
 <div class="alert alert-info" style="margin-bottom:1.5rem">
-    <strong>One-login vision:</strong>
-    Future phases will enable seamless single sign-on across all linked modules.
-    Currently, modules using <em>standalone</em> or <em>local</em> auth require
-    separate login credentials. Launch opens the module in a new tab.
+    <strong>Secure launch:</strong>
+    Modules marked <em>signed launch</em> use a time-limited, cryptographically signed
+    handoff. Modules with <em>standalone</em> or <em>local</em> auth require separate
+    credentials. SSO (shared_session, oauth) is planned for a future release.
 </div>
 
 <div style="display:grid;gap:1rem;grid-template-columns:repeat(auto-fill,minmax(300px,1fr))">
     @forelse($modules as $key => $module)
     @php
-        $linked   = ($module['status'] ?? 'not_linked') !== 'not_linked';
-        $active   = $module['status'] === 'active';
-        $hasUrl   = !empty($module['launch_url']);
-        $setup    = $module['setup_required'] ?? true;
-        $warnings = $module['warnings'] ?? [];
-        $authMode = $module['auth_mode'] ?? 'standalone';
-        $isSso    = in_array($authMode, ['shared_session', 'signed_launch', 'oauth']);
-        $linkId   = $module['link_id'] ?? null;
-        $icon     = config("glasshouse.launch_modules.{$key}.icon", '⊕');
+        $linked          = ($module['status'] ?? 'not_linked') !== 'not_linked';
+        $active          = $module['status'] === 'active';
+        $hasUrl          = !empty($module['launch_url']);
+        $setup           = $module['setup_required'] ?? true;
+        $canLaunch       = $module['can_launch'] ?? false;
+        $warnings        = $module['warnings'] ?? [];
+        $authMode        = $module['auth_mode'] ?? 'standalone';
+        $isSignedLaunch  = $authMode === 'signed_launch';
+        $isStubSso       = in_array($authMode, ['shared_session', 'oauth']);
+        $isSso           = $isSignedLaunch || $isStubSso;
+        $linkId          = $module['link_id'] ?? null;
+        $icon            = config("glasshouse.launch_modules.{$key}.icon", '⊕');
     @endphp
     <div class="card" style="display:flex;flex-direction:column;gap:.75rem">
         <div style="display:flex;justify-content:space-between;align-items:flex-start">
@@ -70,9 +73,14 @@
         @endif
 
         <div style="display:flex;align-items:center;gap:.5rem;flex-wrap:wrap">
-            <span class="text-dim text-sm">Auth: <code>{{ $authMode }}</code></span>
-            @if($isSso)
-                <span class="text-dim text-sm">(Phase 8+)</span>
+            @if($isSignedLaunch)
+                <span class="text-dim text-sm">Auth: <code>signed launch</code></span>
+                <span style="color:var(--accent);font-size:.75rem">⊛ secure</span>
+            @elseif($isStubSso)
+                <span class="text-dim text-sm">Auth: <code>{{ $authMode }}</code></span>
+                <span class="text-dim text-sm">(Phase 9+)</span>
+            @else
+                <span class="text-dim text-sm">Auth: <code>{{ $authMode }}</code></span>
             @endif
         </div>
 
@@ -83,7 +91,16 @@
         <div style="margin-top:auto;padding-top:.5rem;border-top:1px solid var(--border)">
             @if(!$linked)
                 <span class="text-sm text-dim">Not linked to your account — contact support.</span>
-            @elseif($isSso && $linkId)
+            @elseif($isSignedLaunch && $canLaunch && $linkId)
+                {{-- Phase 8: signed launch is operational --}}
+                <a href="{{ route('portal.module.launch', $linkId) }}"
+                   style="display:inline-block;padding:.4rem .9rem;background:var(--accent-d);color:#fff;border-radius:.375rem;font-size:.875rem;font-weight:500;text-decoration:none">
+                    Secure launch →
+                </a>
+            @elseif($isSignedLaunch && $linkId)
+                {{-- signed_launch configured but setup not complete --}}
+                <span class="text-sm text-dim" style="color:var(--warning)">Setup required — contact support.</span>
+            @elseif($isStubSso && $linkId)
                 {{-- SSO stub — routes through launch controller for audit logging --}}
                 <span class="text-sm text-dim" style="color:var(--warning)">Setup required — contact support.</span>
                 <div style="margin-top:.5rem">
@@ -94,11 +111,10 @@
                 </div>
                 <div class="text-sm text-dim" style="margin-top:.35rem">Single sign-on available in a future release (Phase 7+).</div>
             @elseif($hasUrl && $linkId)
-                {{-- Audited launch redirect. The raw URL is in data-url for test verification. --}}
+                {{-- Audited external URL launch --}}
                 <a href="{{ route('portal.module.launch', $linkId) }}"
-                   data-url="{{ $module['launch_url'] }}"
                    style="display:inline-block;padding:.4rem .9rem;background:var(--accent-d);color:#fff;border-radius:.375rem;font-size:.875rem;font-weight:500;text-decoration:none">
-                    Launch →
+                    External launch →
                 </a>
             @elseif($setup)
                 <span class="text-sm text-dim" style="color:var(--warning)">Setup required — contact support.</span>

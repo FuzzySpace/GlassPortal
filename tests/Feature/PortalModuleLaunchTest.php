@@ -132,11 +132,13 @@ class PortalModuleLaunchTest extends TestCase
     // Stubbed — SSO modes
     // -------------------------------------------------------------------------
 
-    public function test_sso_launch_returns_stub_page(): void
+    // Phase 8: signed_launch is operational — no longer a stub.
+    // shared_session and oauth remain stubs.
+    public function test_stub_sso_launch_returns_stub_page(): void
     {
         $org  = Organization::factory()->create();
         $link = OrganizationModuleLink::factory()
-            ->ssoMode('signed_launch')
+            ->ssoMode('oauth')
             ->forModule('glasspanel', 'GlassPanel')
             ->create(['organization_id' => $org->id, 'status' => 'active']);
         $user = $this->customerUser($org);
@@ -145,6 +147,21 @@ class PortalModuleLaunchTest extends TestCase
             ->get("/portal/modules/{$link->id}/launch")
             ->assertStatus(200)
             ->assertSeeText('Single Sign-On Coming Soon');
+    }
+
+    public function test_signed_launch_without_external_url_redirects_with_error(): void
+    {
+        // Phase 8: signed_launch with no external_url → denied (not a stub page)
+        $org  = Organization::factory()->create();
+        $link = OrganizationModuleLink::factory()
+            ->ssoMode('signed_launch')   // ssoMode sets external_url=null
+            ->forModule('glasspanel', 'GlassPanel')
+            ->create(['organization_id' => $org->id, 'status' => 'active']);
+        $user = $this->customerUser($org);
+
+        $this->actingAs($user)
+            ->get("/portal/modules/{$link->id}/launch")
+            ->assertRedirect('/portal/modules');
     }
 
     public function test_sso_launch_creates_stubbed_audit_event(): void
@@ -166,12 +183,13 @@ class PortalModuleLaunchTest extends TestCase
         ]);
     }
 
-    public function test_all_sso_modes_return_stub_page(): void
+    // Phase 8: only shared_session and oauth remain stubs; signed_launch is operational.
+    public function test_stub_sso_modes_return_stub_page(): void
     {
-        $org = Organization::factory()->create();
+        $org  = Organization::factory()->create();
         $user = $this->customerUser($org);
 
-        foreach (['shared_session', 'signed_launch', 'oauth'] as $mode) {
+        foreach (['shared_session', 'oauth'] as $mode) {
             $link = OrganizationModuleLink::factory()
                 ->ssoMode($mode)
                 ->forModule('dns', 'DNS')

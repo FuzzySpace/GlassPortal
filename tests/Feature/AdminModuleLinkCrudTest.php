@@ -7,20 +7,20 @@ use App\Models\Organization;
 use App\Models\OrganizationModuleLink;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Tests\TestCase;
 use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
+use Illuminate\Foundation\Http\Middleware\VerifyCsrfToken;
+use Tests\TestCase;
 
 class AdminModuleLinkCrudTest extends TestCase
 {
+    use RefreshDatabase;
+
     protected function setUp(): void
     {
         parent::setUp();
 
         $this->withoutMiddleware(ValidateCsrfToken::class);
     }
-
-    use RefreshDatabase;
-
     private function adminUser(): User
     {
         return User::factory()->create(['role' => UserRole::Admin->value]);

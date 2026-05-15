@@ -10,8 +10,18 @@
 </div>
 
 <div class="alert alert-info" style="margin-bottom:1.5rem">
-    Module links store routing metadata only. Do not enter API tokens, passwords, or private keys here.
+    Module links store routing metadata only. <strong>Do not enter API tokens, passwords, or private keys here.</strong>
+    For <code>signed_launch</code>: set <em>Launch URL</em> to the module's handoff endpoint.
+    The signing secret is configured server-side via <code>GLASSPORTAL_SIGNED_LAUNCH_SECRET</code>.
 </div>
+
+@if($link->auth_mode === 'signed_launch' && empty(config('glasshouse_sso.signing_secret')))
+<div class="alert" style="margin-bottom:1rem;background:rgba(210,153,34,.1);border:1px solid var(--warning);padding:.75rem 1rem;border-radius:.5rem">
+    <strong style="color:var(--warning)">⚠ Signed launch secret is not configured.</strong>
+    <span class="text-sm text-dim"> This link uses <code>signed_launch</code> but
+    <code>GLASSPORTAL_SIGNED_LAUNCH_SECRET</code> is not set. Launches will fail until it is configured.</span>
+</div>
+@endif
 
 @if($errors->any())
 <div class="alert" style="margin-bottom:1rem;background:rgba(248,81,73,.12);border:1px solid var(--danger);padding:.75rem 1rem;border-radius:.5rem">

@@ -64,9 +64,8 @@ class PortalModulesTest extends TestCase
         $response = $this->actingAs($user)->get('/portal/modules');
 
         $response->assertStatus(200);
-        // Launch now routes through the audited endpoint; the raw URL appears in data-url
-        $response->assertSee('data-url="https://panel.test"', false);
-        $response->assertSeeText('Launch');
+        // Phase 8: launch URL no longer rendered in HTML (routes through audited endpoint)
+        $response->assertSeeText('External launch');
     }
 
     public function test_portal_modules_shows_setup_required_for_sso_link(): void
