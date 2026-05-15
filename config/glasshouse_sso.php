@@ -72,4 +72,63 @@ return [
     */
     'nonce_cache_ttl_seconds' => 600,
 
+    /*
+    |--------------------------------------------------------------------------
+    | Key ID (KID) — Phase 9
+    |--------------------------------------------------------------------------
+    |
+    | When set, the token header includes "kid": key_id so the receiving module
+    | can select the correct verification key when multiple keys are in rotation.
+    |
+    | If empty, tokens are issued without a kid claim (single-secret backward
+    | compatibility mode). On verification, tokens without a kid are verified
+    | against signing_secret regardless of the keys array.
+    |
+    */
+    'key_id' => env('GLASSPORTAL_SIGNED_LAUNCH_KEY_ID', ''),
+
+    /*
+    |--------------------------------------------------------------------------
+    | Key Map — Phase 9
+    |--------------------------------------------------------------------------
+    |
+    | Maps key IDs to signing secrets for key rotation support.
+    | Add entries here (or override in environment-specific config files).
+    | Example:
+    |   'keys' => [
+    |       'v1' => env('GLASSPORTAL_SIGNED_LAUNCH_SECRET_V1', ''),
+    |       'v2' => env('GLASSPORTAL_SIGNED_LAUNCH_SECRET_V2', ''),
+    |   ],
+    |
+    | During rotation: set key_id to the new kid, keep the old kid in keys[].
+    | Old tokens (from the previous kid) will verify against their key in this map.
+    |
+    */
+    'keys' => [],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Dev SSO Consume Route — Phase 9
+    |--------------------------------------------------------------------------
+    |
+    | Enables POST /_dev/sso/consume/{moduleKey} outside of local/testing envs.
+    | The route is always available in local and testing environments.
+    | Set GLASSPORTAL_ENABLE_DEV_SSO_CONSUME=true in staging to enable it there.
+    | Never enable in production.
+    |
+    */
+    'enable_dev_sso_consume' => (bool) env('GLASSPORTAL_ENABLE_DEV_SSO_CONSUME', false),
+
+    /*
+    |--------------------------------------------------------------------------
+    | Portal Launch Rate Limit — Phase 9
+    |--------------------------------------------------------------------------
+    |
+    | Maximum launch attempts per user per module link per minute.
+    | Exceeding this limit records a rate_limited audit event and redirects
+    | the user back to /portal/modules with an error message.
+    |
+    */
+    'rate_limit_per_minute' => (int) env('GLASSPORTAL_LAUNCH_RATE_LIMIT', 20),
+
 ];

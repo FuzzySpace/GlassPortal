@@ -189,6 +189,76 @@ class GlassPortalHealthCheck extends Command
             $this->warnCheck('config.signed_launch', 'Could not check signed launch secret: ' . $e->getMessage());
         }
 
+        // 7e. Key ID (Phase 9) — informational only
+        try {
+            $keyId = config('glasshouse_sso.key_id', '');
+            if ($keyId !== '') {
+                $this->pass('sso.key_id', "GLASSPORTAL_SIGNED_LAUNCH_KEY_ID is set: {$keyId}");
+            } else {
+                $this->warnCheck('sso.key_id', 'GLASSPORTAL_SIGNED_LAUNCH_KEY_ID not set — tokens issued without kid (single-secret mode)');
+            }
+        } catch (\Throwable $e) {
+            $this->warnCheck('sso.key_id', 'Could not check key_id: ' . $e->getMessage());
+        }
+
+        // 7e-ii. Middleware alias 'signed.launch' (Phase 9)
+        // Middleware aliases from bootstrap/app.php are HTTP-kernel-scoped and not
+        // visible to the router during artisan; verify by checking the class exists
+        // and that the dev route (which uses the alias) is registered.
+        try {
+            $mwClass  = \App\Http\Middleware\VerifySignedModuleLaunch::class;
+            $devRoute = app('router')->getRoutes()->getByName('dev.sso.consume');
+            if (class_exists($mwClass) && $devRoute !== null) {
+                $this->pass('middleware.signed_launch', 'signed.launch middleware class present and applied to dev.sso.consume route');
+            } elseif (class_exists($mwClass)) {
+                $this->warnCheck('middleware.signed_launch', 'VerifySignedModuleLaunch class exists; register alias in bootstrap/app.php if missing');
+            } else {
+                $this->checkFail('middleware.signed_launch', 'VerifySignedModuleLaunch class not found — check app/Http/Middleware/');
+                $allPassed = false;
+            }
+        } catch (\Throwable $e) {
+            $this->warnCheck('middleware.signed_launch', 'Could not check signed.launch middleware: ' . $e->getMessage());
+        }
+
+        // 7e-iii. Verifier service resolvable (Phase 9)
+        try {
+            app(\App\Services\Sso\SignedLaunchVerifierService::class);
+            $this->pass('verifier.service', 'SignedLaunchVerifierService is resolvable from container');
+        } catch (\Throwable $e) {
+            $this->checkFail('verifier.service', 'SignedLaunchVerifierService not resolvable: ' . $e->getMessage());
+            $allPassed = false;
+        }
+
+        // 7f. Dev SSO consumer route (Phase 9) — only expected in local/testing
+        try {
+            $routes    = app('router')->getRoutes();
+            $devRoute  = $routes->getByName('dev.sso.consume');
+            $isDevEnv  = app()->environment('local', 'testing');
+
+            if ($devRoute !== null && $isDevEnv) {
+                $this->pass('routes.sso_consumer_dev', 'dev.sso.consume route registered (local/testing only)');
+            } elseif ($devRoute !== null && ! $isDevEnv) {
+                $this->checkFail('routes.sso_consumer_dev', 'dev.sso.consume route is registered in a non-dev environment — check routes/web.php');
+                $allPassed = false;
+            } else {
+                $this->warnCheck('routes.sso_consumer_dev', 'dev.sso.consume route not registered (expected only in local/testing)');
+            }
+        } catch (\Throwable $e) {
+            $this->warnCheck('routes.sso_consumer_dev', 'Could not check dev SSO consumer route: ' . $e->getMessage());
+        }
+
+        // 7g. Launch rate limit config (Phase 9)
+        try {
+            $limit = (int) config('glasshouse_sso.rate_limit_per_minute', 20);
+            if ($limit > 0) {
+                $this->pass('rate_limits.module_launch', "Portal launch rate limit: {$limit} requests/minute/user/link");
+            } else {
+                $this->warnCheck('rate_limits.module_launch', 'GLASSPORTAL_LAUNCH_RATE_LIMIT is 0 — rate limiting is effectively disabled');
+            }
+        } catch (\Throwable $e) {
+            $this->warnCheck('rate_limits.module_launch', 'Could not check launch rate limit config: ' . $e->getMessage());
+        }
+
         // 8. GlassBilling connector
         try {
             $health = $billing->health();

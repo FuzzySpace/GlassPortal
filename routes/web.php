@@ -8,6 +8,7 @@ use App\Http\Controllers\Admin\ModulesController;
 use App\Http\Controllers\Admin\ProvisioningController;
 use App\Http\Controllers\Admin\ServicesController;
 use App\Http\Controllers\Auth\LoginController;
+use App\Http\Controllers\Dev\SsoConsumeController;
 use App\Http\Controllers\Portal\DashboardController as PortalDashboardController;
 use App\Http\Controllers\Portal\ModuleLaunchController;
 use App\Http\Controllers\Portal\ModulesController as PortalModulesController;
@@ -89,3 +90,20 @@ Route::middleware(['auth', 'role:customer'])
         // Audited launch — GET so the browser can open in a new tab if needed
         Route::get('/modules/{moduleLink}/launch', [ModuleLaunchController::class, 'launch'])->name('module.launch');
     });
+
+/*
+|--------------------------------------------------------------------------
+| Dev / test SSO consumer  (local + testing environments only)
+|--------------------------------------------------------------------------
+|
+| Simulates a downstream module receiving a signed launch POST.
+| Verifies the SLP token and returns the decoded identity context as JSON.
+| Guards: not registered in production.
+|
+*/
+
+if (app()->environment('local', 'testing') || config('glasshouse_sso.enable_dev_sso_consume', false)) {
+    Route::post('/_dev/sso/consume/{moduleKey}', [SsoConsumeController::class, 'consume'])
+        ->middleware('signed.launch')
+        ->name('dev.sso.consume');
+}

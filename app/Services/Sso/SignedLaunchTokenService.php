@@ -37,6 +37,8 @@ class SignedLaunchTokenService
     private int    $maxTtl;
     private int    $clockSkew;
     private int    $cacheTtl;
+    private string $keyId;
+    private array  $keys;
 
     public function __construct()
     {
@@ -47,6 +49,8 @@ class SignedLaunchTokenService
         $this->maxTtl    = (int)    ($cfg['max_ttl_seconds'] ?? 300);
         $this->clockSkew = (int)    ($cfg['clock_skew_seconds'] ?? 30);
         $this->cacheTtl  = (int)    ($cfg['nonce_cache_ttl_seconds'] ?? 600);
+        $this->keyId     = (string) ($cfg['key_id'] ?? '');
+        $this->keys      = (array)  ($cfg['keys'] ?? []);
     }
 
     /**
@@ -126,8 +130,6 @@ class SignedLaunchTokenService
      */
     public function verify(string $token, string $expectedAudience, ?string $secret = null): array
     {
-        $secret = ($secret !== null && $secret !== '') ? $secret : $this->secret;
-
         $parts = explode('.', $token);
         if (count($parts) !== 3) {
             throw new InvalidArgumentException('Malformed token: expected exactly 3 parts.');
@@ -135,8 +137,21 @@ class SignedLaunchTokenService
 
         [$headerB64, $payloadB64, $sigB64] = $parts;
 
+        // Resolve signing secret: explicit override > kid key map > primary secret
+        if ($secret !== null && $secret !== '') {
+            $resolvedSecret = $secret;
+        } else {
+            $headerData = json_decode($this->b64UrlDecode($headerB64), true) ?? [];
+            $kid        = (string) ($headerData['kid'] ?? '');
+            if ($kid !== '' && isset($this->keys[$kid])) {
+                $resolvedSecret = (string) $this->keys[$kid];
+            } else {
+                $resolvedSecret = $this->secret;
+            }
+        }
+
         // 1. Signature check
-        $expectedSig = $this->hmacB64("{$headerB64}.{$payloadB64}", $secret);
+        $expectedSig = $this->hmacB64("{$headerB64}.{$payloadB64}", $resolvedSecret);
         if (! hash_equals($expectedSig, $sigB64)) {
             throw new InvalidArgumentException('Token signature verification failed.');
         }
@@ -197,7 +212,11 @@ class SignedLaunchTokenService
 
     private function buildToken(array $claims): string
     {
-        $header  = $this->b64UrlEncode(json_encode(['alg' => 'HS256', 'typ' => 'SLP']));
+        $headerData = ['alg' => 'HS256', 'typ' => 'SLP'];
+        if ($this->keyId !== '') {
+            $headerData['kid'] = $this->keyId;
+        }
+        $header  = $this->b64UrlEncode(json_encode($headerData));
         $payload = $this->b64UrlEncode(
             json_encode($claims, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR)
         );

@@ -8,7 +8,6 @@ use App\Models\OrganizationModuleLink;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
-use Illuminate\Foundation\Http\Middleware\VerifyCsrfToken;
 use Tests\TestCase;
 
 class AdminModuleLinkCrudTest extends TestCase
@@ -21,6 +20,7 @@ class AdminModuleLinkCrudTest extends TestCase
 
         $this->withoutMiddleware(ValidateCsrfToken::class);
     }
+
     private function adminUser(): User
     {
         return User::factory()->create(['role' => UserRole::Admin->value]);

@@ -8,6 +8,7 @@ use App\Services\ModuleLaunchService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\View\View;
 
 class ModuleLaunchController extends Controller
@@ -33,6 +34,23 @@ class ModuleLaunchController extends Controller
         if ((int) $moduleLink->organization_id !== (int) $user->organization_id) {
             abort(403, 'You do not have access to this module link.');
         }
+
+        // Rate limit: max N launches per user per link per minute
+        $rateLimitKey = 'module-launch:' . $user->id . ':' . $moduleLink->id;
+        $maxAttempts  = (int) config('glasshouse_sso.rate_limit_per_minute', 20);
+
+        if (RateLimiter::tooManyAttempts($rateLimitKey, $maxAttempts)) {
+            $this->launcher->recordRateLimited(
+                $moduleLink,
+                $user,
+                $request->ip() ?? '',
+                $request->userAgent() ?? '',
+            );
+            return redirect()->route('portal.modules')
+                ->with('error', 'Too many launch attempts. Please wait a moment before trying again.');
+        }
+
+        RateLimiter::hit($rateLimitKey, 60);
 
         $result = $this->launcher->attemptLaunch(
             $moduleLink,
