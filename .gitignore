@@ -1,0 +1,79 @@
+# --- Secrets / environment ---
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+secrets/
+
+# --- PHP / Composer ---
+/vendor/
+composer.phar
+.phpunit.result.cache
+.phpunit.cache/
+
+# --- Laravel runtime ---
+/storage/logs/*
+!/storage/logs/.gitkeep
+/storage/framework/cache/data/*
+!/storage/framework/cache/data/.gitkeep
+/storage/framework/sessions/*
+!/storage/framework/sessions/.gitkeep
+/storage/framework/testing/*
+!/storage/framework/testing/.gitkeep
+/storage/framework/views/*
+!/storage/framework/views/.gitkeep
+/bootstrap/cache/*.php
+!/bootstrap/cache/.gitkeep
+database/database.sqlite
+
+# --- Node / JS ---
+/node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.pnpm-store/
+.next/
+.nuxt/
+.svelte-kit/
+.turbo/
+/dist/
+/build/
+/public/build/
+/public/hot/
+coverage/
+*.tsbuildinfo
+
+# --- Logs / caches / runtime ---
+logs/
+*.log
+cache/
+tmp/
+temp/
+runtime/
+
+# --- Windows installer build output ---
+windows-installer/output/
+windows-installer/dist/
+*.iss.bak
+*.exe
+*.msi
+
+# --- Editor / OS junk ---
+.DS_Store
+Thumbs.db
+desktop.ini
+.idea/
+.vscode/
+!.vscode/extensions.json
+*.swp
+*.swo
+*~
+*.bak
+*.orig
+
+# --- Database dumps that may contain real data ---
+*.sql.gz
+*.sql.bak
+*.dump
