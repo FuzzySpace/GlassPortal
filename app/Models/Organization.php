@@ -32,6 +32,11 @@ class Organization extends Model
         return $this->hasMany(User::class);
     }
 
+    public function moduleLinks(): HasMany
+    {
+        return $this->hasMany(OrganizationModuleLink::class);
+    }
+
     public function isActive(): bool
     {
         return $this->status === 'active';

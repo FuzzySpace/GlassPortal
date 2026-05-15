@@ -170,11 +170,14 @@
             </a>
 
             <div class="nav-section">System</div>
-            <a href="{{ route('admin.modules') }}" class="{{ str_starts_with($route, 'admin.modules') ? 'active' : '' }}">
+            <a href="{{ route('admin.modules') }}" class="{{ str_starts_with($route, 'admin.modules') && !str_starts_with($route, 'admin.module-links') ? 'active' : '' }}">
                 <span class="icon">⊛</span> Modules
             </a>
+            <a href="{{ route('admin.module-links') }}" class="{{ str_starts_with($route, 'admin.module-links') ? 'active' : '' }}">
+                <span class="icon">⊞</span> Module Links
+            </a>
             <a href="#" class="{{ $route === 'admin.billing' ? 'active' : '' }}">
-                <span class="icon">◈</span> Billing <span class="sidebar-badge">Phase 5</span>
+                <span class="icon">◈</span> Billing <span class="sidebar-badge">Phase 7</span>
             </a>
             <a href="#" class="{{ $route === 'admin.support' ? 'active' : '' }}">
                 <span class="icon">◎</span> Support <span class="sidebar-badge">Phase 4</span>

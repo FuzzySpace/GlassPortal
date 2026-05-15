@@ -5,10 +5,10 @@
 | Glasshouse Ecosystem Module Configuration
 |--------------------------------------------------------------------------
 |
-| Phase 3: module registry with enabled flags, display names, health
+| Phase 3–6: module registry with enabled flags, display names, health
 | endpoints, and env-driven credentials. No hardcoded URLs or tokens.
 |
-| Each module has:
+| Each connector module (under 'modules') has:
 |   enabled         — bool, controls whether the module is active
 |   display_name    — human label for the UI
 |   base_url        — env-driven; empty string = not configured
@@ -16,10 +16,20 @@
 |   health_endpoint — relative path to call for health check
 |   notes           — short human description of what this module owns
 |
+| Phase 6 adds 'launch_modules': the customer-facing module registry used
+| by ModuleLaunchService. Keys align with organization_module_links.module_key.
+|
 */
 
 return [
 
+    /*
+    |--------------------------------------------------------------------------
+    | Ecosystem connector modules (system-level registry)
+    |--------------------------------------------------------------------------
+    | These are the underlying service integrations. Each has health checks,
+    | API credentials, and connector scaffolding.
+    */
     'modules' => [
 
         'glassbilling' => [
@@ -90,6 +100,103 @@ return [
             'timeout'         => (int) env('PTERODACTYL_TIMEOUT', 5),
             'health_endpoint' => '/api/client',
             'notes'           => 'Legacy game panel. Migration target -> GlassPanel.',
+        ],
+
+        // Phase 6: logical module keys surfaced to customers
+        // These map to underlying connectors above or standalone services.
+
+        'dns' => [
+            'enabled'         => (bool) env('POWERDNS_ENABLED', false),
+            'display_name'    => 'DNS',
+            'base_url'        => env('POWERDNS_API_URL', ''),
+            'token'           => env('POWERDNS_API_KEY', ''),
+            'timeout'         => (int) env('POWERDNS_TIMEOUT', 5),
+            'health_endpoint' => '/api/v1/servers',
+            'notes'           => 'DNS zone and record management (PowerDNS backend).',
+        ],
+
+        'mail' => [
+            'enabled'         => (bool) env('MAILCOW_ENABLED', false),
+            'display_name'    => 'Mail',
+            'base_url'        => env('MAILCOW_API_URL', ''),
+            'token'           => env('MAILCOW_API_KEY', ''),
+            'timeout'         => (int) env('MAILCOW_TIMEOUT', 5),
+            'health_endpoint' => '/api/v1/get/status/containers',
+            'notes'           => 'Mailbox and alias management (Mailcow backend).',
+        ],
+
+        'support' => [
+            'enabled'         => env('SUPPORT_INBOX_PROVIDER', 'internal') !== 'internal',
+            'display_name'    => 'Support',
+            'base_url'        => env('SUPPORT_INBOX_HOST', ''),
+            'token'           => '',
+            'timeout'         => 5,
+            'health_endpoint' => '',
+            'notes'           => 'Support ticketing. Provider set via SUPPORT_INBOX_PROVIDER.',
+        ],
+
+        'infrastructure' => [
+            'enabled'         => (bool) env('PROXMOX_ENABLED', false),
+            'display_name'    => 'Infrastructure',
+            'base_url'        => env('PROXMOX_API_URL', ''),
+            'token'           => env('PROXMOX_API_TOKEN', ''),
+            'timeout'         => (int) env('PROXMOX_TIMEOUT', 5),
+            'health_endpoint' => '/api2/json/version',
+            'notes'           => 'VM / VPS / container infrastructure (Proxmox backend).',
+        ],
+
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Phase 6: Customer-facing launch module registry
+    |--------------------------------------------------------------------------
+    | Used by ModuleLaunchService to build the customer module launchpad.
+    | Keys must match organization_module_links.module_key values.
+    | Credentials are never included here — only display metadata.
+    */
+    'launch_modules' => [
+
+        'glassbilling' => [
+            'display_name' => 'Billing',
+            'description'  => 'View invoices, subscriptions, and payment history.',
+            'icon'         => '◈',
+        ],
+
+        'glasspanel' => [
+            'display_name' => 'Game Panel',
+            'description'  => 'Start, stop, and manage your game servers.',
+            'icon'         => '▶',
+        ],
+
+        'aria' => [
+            'display_name' => 'Aria (AI)',
+            'description'  => 'AI-powered support and operations assistant.',
+            'icon'         => '◎',
+        ],
+
+        'dns' => [
+            'display_name' => 'DNS',
+            'description'  => 'Manage DNS zones and records for your domains.',
+            'icon'         => '⊙',
+        ],
+
+        'mail' => [
+            'display_name' => 'Mail',
+            'description'  => 'Mailboxes and aliases for your domains.',
+            'icon'         => '✉',
+        ],
+
+        'support' => [
+            'display_name' => 'Support',
+            'description'  => 'Submit and track support tickets.',
+            'icon'         => '◉',
+        ],
+
+        'infrastructure' => [
+            'display_name' => 'Infrastructure',
+            'description'  => 'VPS, VM, and container management.',
+            'icon'         => '⊞',
         ],
 
     ],

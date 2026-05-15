@@ -84,6 +84,24 @@ class GlassBillingClient
         return $this->get('/api/v1/admin/customer-services/' . rawurlencode($id) . '/timeline');
     }
 
+    public function customers(array $query = []): GlassBillingResult
+    {
+        if (! $this->configured) {
+            return GlassBillingResult::unconfigured();
+        }
+
+        return $this->get('/api/v1/admin/customers', $query);
+    }
+
+    public function customer(string $id): GlassBillingResult
+    {
+        if (! $this->configured) {
+            return GlassBillingResult::unconfigured();
+        }
+
+        return $this->get('/api/v1/admin/customers/' . rawurlencode($id));
+    }
+
     public function provisioningRequests(array $query = []): GlassBillingResult
     {
         if (! $this->configured) {

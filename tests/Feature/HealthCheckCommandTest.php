@@ -92,4 +92,25 @@ class HealthCheckCommandTest extends TestCase
         $this->artisan('glassportal:healthcheck --strict')
             ->assertExitCode(1);
     }
+
+    public function test_healthcheck_reports_customer_mapping_column(): void
+    {
+        $this->artisan('glassportal:healthcheck')
+            ->expectsOutputToContain('glassbilling_customer_id')
+            ->assertExitCode(0);
+    }
+
+    public function test_healthcheck_reports_module_links_table(): void
+    {
+        $this->artisan('glassportal:healthcheck')
+            ->expectsOutputToContain('organization_module_links')
+            ->assertExitCode(0);
+    }
+
+    public function test_healthcheck_reports_launch_module_count(): void
+    {
+        $this->artisan('glassportal:healthcheck')
+            ->expectsOutputToContain('launch module')
+            ->assertExitCode(0);
+    }
 }
