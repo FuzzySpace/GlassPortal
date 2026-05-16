@@ -15,6 +15,9 @@
         <li><strong>signed_launch</strong> — now operational (Phase 8). Requires
             <code>GLASSPORTAL_SIGNED_LAUNCH_SECRET</code> set in the environment.
             Set <em>Launch URL</em> to the module's handoff endpoint. Do not include tokens in the URL.</li>
+        <li><strong>backchannel_launch</strong> — server-to-server code exchange (Phase 11). Requires
+            <code>GLASSPORTAL_BACKCHANNEL_SSO_ENABLED=true</code> and the module to call
+            <code>POST /api/sso/backchannel/redeem/{moduleKey}</code> with the one-time code.</li>
         <li><strong>shared_session / oauth</strong> — Phase 9+ stubs. Will show "Coming soon" to users.</li>
         <li><strong>standalone / api_token</strong> — uses external_url as a direct launch link. No secrets in the URL.</li>
     </ul>
@@ -78,7 +81,7 @@
                     <option value="{{ $mode }}" @selected(old('auth_mode', 'standalone') === $mode)>{{ $mode }}</option>
                     @endforeach
                 </select>
-                <div class="text-sm text-dim" style="margin-top:.35rem">shared_session / signed_launch / oauth are Phase 8+ stubs — no token exchange occurs.</div>
+                <div class="text-sm text-dim" style="margin-top:.35rem"><strong>signed_launch</strong> — browser-mediated HMAC token handoff (Phase 8+). <strong>backchannel_launch</strong> — server-to-server code exchange (Phase 11+, requires <code>GLASSPORTAL_BACKCHANNEL_SSO_ENABLED=true</code>). shared_session / oauth — future stubs.</div>
             </div>
 
             <div>

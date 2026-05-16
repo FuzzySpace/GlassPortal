@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\ModuleLaunchEvent;
 use App\Models\OrganizationModuleLink;
 use App\Models\User;
+use App\Services\Sso\BackChannelLaunchService;
 use App\Services\Sso\SignedLaunchTokenService;
 
 /**
@@ -37,9 +38,10 @@ class ModuleLaunchService
      * records a ModuleLaunchEvent for every outcome. Never leaks secrets.
      *
      * @return array{
-     *   outcome: 'allowed'|'signed_launch'|'denied'|'stubbed',
+     *   outcome: 'allowed'|'signed_launch'|'backchannel_launch'|'denied'|'stubbed',
      *   redirect_url: string|null,
      *   token: string|null,
+     *   launch_code: string|null,
      *   auth_mode: string,
      *   reason: string|null,
      *   jti: string|null,
@@ -69,6 +71,11 @@ class ModuleLaunchService
             return $this->handleSignedLaunch($link, $user, $ip, $userAgent);
         }
 
+        // Phase 11: back-channel launch
+        if ($link->isBackChannelLaunchMode()) {
+            return $this->handleBackChannelLaunch($link, $user, $ip, $userAgent);
+        }
+
         // Remaining stub SSO modes (shared_session, oauth → Phase 9+)
         if (in_array($link->auth_mode, self::STUB_SSO_MODES, true)) {
             $this->recordEvent($link, $user, 'stubbed', "SSO stub: {$link->auth_mode}", $ip, $userAgent);
@@ -76,6 +83,7 @@ class ModuleLaunchService
                 'outcome'      => 'stubbed',
                 'redirect_url' => null,
                 'token'        => null,
+                'launch_code'  => null,
                 'auth_mode'    => $link->auth_mode,
                 'reason'       => ucfirst(str_replace('_', ' ', $link->auth_mode))
                     . ' authentication is not yet available. This feature is planned for a future release.',
@@ -96,6 +104,7 @@ class ModuleLaunchService
             'outcome'      => 'allowed',
             'redirect_url' => $url,
             'token'        => null,
+            'launch_code'  => null,
             'auth_mode'    => $link->auth_mode,
             'reason'       => null,
             'jti'          => null,
@@ -249,6 +258,7 @@ class ModuleLaunchService
                 'outcome'      => 'signed_launch',
                 'redirect_url' => $link->external_url,
                 'token'        => $result['token'],
+                'launch_code'  => null,
                 'auth_mode'    => 'signed_launch',
                 'reason'       => null,
                 'jti'          => $result['jti'],
@@ -258,6 +268,64 @@ class ModuleLaunchService
             $this->recordEvent($link, $user, 'failed', 'Token generation error', $ip, $userAgent);
             return $this->denied(
                 'Signed launch could not be completed. Contact your administrator.'
+            );
+        }
+    }
+
+    // =========================================================================
+    // Back-channel launch (Phase 11)
+    // =========================================================================
+
+    private function handleBackChannelLaunch(
+        OrganizationModuleLink $link,
+        User $user,
+        string $ip,
+        string $userAgent,
+    ): array {
+        if (empty($link->external_url)) {
+            $this->recordEvent($link, $user, 'failed', 'No launch endpoint configured', $ip, $userAgent);
+            return $this->denied(
+                'No launch endpoint is configured for this module link. Contact your administrator.'
+            );
+        }
+
+        if (! config('glasshouse_sso.backchannel.enabled', false)) {
+            $this->recordEvent($link, $user, 'failed', 'Back-channel SSO not enabled', $ip, $userAgent);
+            return $this->denied(
+                'Back-channel launch is not enabled. Contact your administrator.'
+            );
+        }
+
+        try {
+            $service = app(BackChannelLaunchService::class);
+            $result  = $service->issueCode($link, $user);
+
+            if (! $result->ok) {
+                $this->recordEvent($link, $user, 'failed', "Code issue failed: {$result->reason}", $ip, $userAgent);
+                return $this->denied(
+                    'Back-channel launch could not be completed. Contact your administrator.'
+                );
+            }
+
+            // Audit: never log the raw code — only timing data
+            $this->recordEvent($link, $user, 'backchannel_code_issued', null, $ip, $userAgent, [
+                'expires_at' => $result->expiresAt,
+            ]);
+
+            return [
+                'outcome'      => 'backchannel_launch',
+                'redirect_url' => $link->external_url,
+                'token'        => null,
+                'launch_code'  => $result->code,
+                'auth_mode'    => 'backchannel_launch',
+                'reason'       => null,
+                'jti'          => null,
+                'expires_at'   => $result->expiresAt,
+            ];
+        } catch (\Throwable $e) {
+            $this->recordEvent($link, $user, 'failed', 'Back-channel code generation error', $ip, $userAgent);
+            return $this->denied(
+                'Back-channel launch could not be completed. Contact your administrator.'
             );
         }
     }
@@ -295,6 +363,7 @@ class ModuleLaunchService
             'outcome'      => 'denied',
             'redirect_url' => null,
             'token'        => null,
+            'launch_code'  => null,
             'auth_mode'    => '',
             'reason'       => $reason,
             'jti'          => null,
@@ -319,6 +388,16 @@ class ModuleLaunchService
                 $warnings[] = 'No launch endpoint configured for this signed launch link.';
             } elseif (empty(config('glasshouse_sso.signing_secret', ''))) {
                 $warnings[] = 'Signed launch is not configured on this portal — contact your administrator.';
+            }
+            return null;
+        }
+
+        // backchannel_launch: no static launch URL — code is generated on demand
+        if ($link->isBackChannelLaunchMode()) {
+            if (empty($link->external_url)) {
+                $warnings[] = 'No launch endpoint configured for this back-channel launch link.';
+            } elseif (! config('glasshouse_sso.backchannel.enabled', false)) {
+                $warnings[] = 'Back-channel SSO is not enabled on this portal — contact your administrator.';
             }
             return null;
         }
@@ -356,6 +435,11 @@ class ModuleLaunchService
                 && ! empty(config('glasshouse_sso.signing_secret', ''));
         }
 
+        if ($link->isBackChannelLaunchMode()) {
+            return ! empty($link->external_url)
+                && (bool) config('glasshouse_sso.backchannel.enabled', false);
+        }
+
         if (in_array($link->auth_mode, self::STUB_SSO_MODES, true)) {
             return false;
         }
@@ -377,6 +461,11 @@ class ModuleLaunchService
         if ($link->isSignedLaunchMode()) {
             return empty($link->external_url)
                 || empty(config('glasshouse_sso.signing_secret', ''));
+        }
+
+        if ($link->isBackChannelLaunchMode()) {
+            return empty($link->external_url)
+                || ! config('glasshouse_sso.backchannel.enabled', false);
         }
 
         if (in_array($link->auth_mode, self::STUB_SSO_MODES, true)) {

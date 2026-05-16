@@ -75,6 +75,16 @@ class ModuleLaunchController extends Controller
             ]);
         }
 
+        if ($outcome === 'backchannel_launch') {
+            // POST-form handoff: launch_code in form body, never in URL
+            return view('portal.module-launch-backchannel-handoff', [
+                'link'         => $moduleLink,
+                'launchUrl'    => $result['redirect_url'],
+                'expiresAt'    => $result['expires_at'],
+                '_launch_code' => $result['launch_code'],
+            ]);
+        }
+
         if ($outcome === 'stubbed') {
             return view('portal.module-launch-stub', [
                 'link'   => $moduleLink,

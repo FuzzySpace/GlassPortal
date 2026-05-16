@@ -131,4 +131,38 @@ return [
     */
     'rate_limit_per_minute' => (int) env('GLASSPORTAL_LAUNCH_RATE_LIMIT', 20),
 
+    /*
+    |--------------------------------------------------------------------------
+    | Back-Channel SSO Exchange — Phase 11
+    |--------------------------------------------------------------------------
+    |
+    | When enabled, modules may use the back-channel exchange instead of the
+    | browser-mediated signed launch handoff. GlassPortal issues a short-lived
+    | one-time launch code that the module redeems server-to-server.
+    |
+    | The launch code NEVER appears in a URL — it is posted in a form body
+    | to the module's redirect endpoint, which then calls GlassPortal's
+    | /api/sso/backchannel/redeem/{moduleKey} to exchange it for identity data.
+    |
+    | Generating a strong secret (same as signed launch):
+    |   openssl rand -base64 64
+    |
+    */
+    'backchannel' => [
+
+        // Master switch — must be explicitly enabled
+        'enabled' => (bool) env('GLASSPORTAL_BACKCHANNEL_SSO_ENABLED', false),
+
+        // One-time code lifetime in seconds (default 60, max 300)
+        'code_ttl_seconds' => (int) env('GLASSPORTAL_BACKCHANNEL_CODE_TTL', 60),
+
+        // How long used-code tombstones are retained for replay detection
+        'replay_cache_ttl_seconds' => (int) env('GLASSPORTAL_BACKCHANNEL_REPLAY_TTL', 600),
+
+        // When true: the module_key in the redeem request must exactly match the
+        // module_key encoded in the code payload. Always true in production.
+        'strict_module_match' => (bool) env('GLASSPORTAL_BACKCHANNEL_STRICT_MODULE', true),
+
+    ],
+
 ];

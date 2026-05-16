@@ -250,6 +250,69 @@ class GlassPortalHealthCheck extends Command
             $this->warnCheck('sso.replay_cache', 'Could not probe replay cache: ' . $e->getMessage());
         }
 
+        // 7e-vi. Back-channel service resolvable (Phase 11)
+        try {
+            app(\App\Services\Sso\BackChannelLaunchService::class);
+            $this->pass('sso.backchannel_service', 'BackChannelLaunchService is resolvable from container');
+        } catch (\Throwable $e) {
+            $this->checkFail('sso.backchannel_service', 'BackChannelLaunchService not resolvable: ' . $e->getMessage());
+            $allPassed = false;
+        }
+
+        // 7e-vii. Back-channel cache probe (Phase 11)
+        try {
+            $bcService = app(\App\Services\Sso\BackChannelLaunchService::class);
+            if ($bcService->isCacheUsable()) {
+                $this->pass('sso.backchannel_cache', 'Back-channel code cache is writable and readable');
+            } else {
+                $this->warnCheck('sso.backchannel_cache', 'Back-channel cache probe failed — check CACHE_STORE');
+            }
+        } catch (\Throwable $e) {
+            $this->warnCheck('sso.backchannel_cache', 'Could not probe back-channel cache: ' . $e->getMessage());
+        }
+
+        // 7e-viii. Back-channel redemption route registered (Phase 11)
+        try {
+            $routes    = app('router')->getRoutes();
+            $bcRoute   = $routes->getByName('api.sso.backchannel.redeem');
+            $bcEnabled = config('glasshouse_sso.backchannel.enabled', false);
+
+            if ($bcRoute !== null && $bcEnabled) {
+                $this->pass('routes.backchannel_redeem', 'api.sso.backchannel.redeem route registered and back-channel enabled');
+            } elseif ($bcRoute !== null) {
+                $this->warnCheck('routes.backchannel_redeem', 'api.sso.backchannel.redeem route registered but GLASSPORTAL_BACKCHANNEL_SSO_ENABLED is false');
+            } else {
+                $this->warnCheck('routes.backchannel_redeem', 'api.sso.backchannel.redeem route not found — check routes/api.php');
+            }
+        } catch (\Throwable $e) {
+            $this->warnCheck('routes.backchannel_redeem', 'Could not check back-channel redeem route: ' . $e->getMessage());
+        }
+
+        // 7e-ix. Back-channel config (Phase 11) — informational
+        try {
+            $bcEnabled = config('glasshouse_sso.backchannel.enabled', false);
+            $bcTtl     = (int) config('glasshouse_sso.backchannel.code_ttl_seconds', 60);
+            $hasLinks  = false;
+            try {
+                $hasLinks = \App\Models\OrganizationModuleLink::where('auth_mode', 'backchannel_launch')
+                    ->where('status', 'active')
+                    ->exists();
+            } catch (\Throwable) {
+                // DB not ready
+            }
+
+            if ($bcEnabled) {
+                $this->pass('config.backchannel', "Back-channel SSO enabled (code TTL: {$bcTtl}s)");
+            } elseif ($hasLinks) {
+                $this->checkFail('config.backchannel', 'Active backchannel_launch links exist but GLASSPORTAL_BACKCHANNEL_SSO_ENABLED is false — launches will fail');
+                $allPassed = false;
+            } else {
+                $this->warnCheck('config.backchannel', 'Back-channel SSO not enabled (set GLASSPORTAL_BACKCHANNEL_SSO_ENABLED=true to enable)');
+            }
+        } catch (\Throwable $e) {
+            $this->warnCheck('config.backchannel', 'Could not check back-channel config: ' . $e->getMessage());
+        }
+
         // 7f. Dev SSO consumer route (Phase 9) — only expected in local/testing
         try {
             $routes    = app('router')->getRoutes();
