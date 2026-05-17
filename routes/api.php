@@ -41,7 +41,7 @@ Route::get('/glassbilling/health', function (GlassBillingClient $client) {
 */
 
 Route::post('/sso/backchannel/redeem/{moduleKey}', [BackChannelRedeemController::class, 'redeem'])
-    ->middleware('throttle:30,1')
+    ->middleware(['throttle:30,1', 'backchannel.mtls'])
     ->name('api.sso.backchannel.redeem');
 
 /*

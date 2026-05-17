@@ -126,16 +126,16 @@ class BackChannelLaunchService
         // Post-consumption checks against live DB state
         $link = OrganizationModuleLink::find($payload['module_link_id'] ?? null);
         if ($link === null || ! $link->isActive()) {
-            return BackChannelLaunchCodeResult::failure('inactive_module_link');
+            return BackChannelLaunchCodeResult::failureWithContext('inactive_module_link', $payload);
         }
 
         if ((string) $link->organization_id !== ($payload['org_id'] ?? '')) {
-            return BackChannelLaunchCodeResult::failure('organization_mismatch');
+            return BackChannelLaunchCodeResult::failureWithContext('organization_mismatch', $payload);
         }
 
         $user = User::find($payload['user_id'] ?? null);
         if ($user === null) {
-            return BackChannelLaunchCodeResult::failure('user_not_found');
+            return BackChannelLaunchCodeResult::failureWithContext('user_not_found', $payload);
         }
 
         return BackChannelLaunchCodeResult::redeemed($payload);

@@ -313,6 +313,53 @@ class GlassPortalHealthCheck extends Command
             $this->warnCheck('config.backchannel', 'Could not check back-channel config: ' . $e->getMessage());
         }
 
+        // 7e-x. Per-module secret capability (Phase 12)
+        try {
+            $resolver     = app(\App\Services\Sso\ModuleSecretResolver::class);
+            $signedModules = [];
+            try {
+                $signedModules = \App\Models\OrganizationModuleLink::where('auth_mode', 'signed_launch')
+                    ->where('status', 'active')
+                    ->pluck('module_key')
+                    ->unique()
+                    ->all();
+            } catch (\Throwable) {}
+
+            $withPerModule    = array_values(array_filter($signedModules, fn ($k) => $resolver->hasPerModuleSecret($k)));
+            $withoutPerModule = array_values(array_diff($signedModules, $withPerModule));
+
+            if (empty($signedModules)) {
+                $this->warnCheck('sso.per_module_secrets', 'No active signed_launch links — per-module secrets not yet needed');
+            } elseif (empty($withoutPerModule)) {
+                $this->pass('sso.per_module_secrets', count($withPerModule) . ' signed_launch module(s) use per-module secrets');
+            } elseif (app()->environment('production')) {
+                $list = implode(', ', $withoutPerModule);
+                $this->warnCheck('sso.per_module_secrets', "Modules using global shared secret in production: {$list} — per-module secrets recommended for isolation");
+            } else {
+                $list = implode(', ', $withoutPerModule);
+                $this->pass('sso.per_module_secrets', "Per-module secrets not set for: {$list} (using global fallback — acceptable in dev)");
+            }
+        } catch (\Throwable $e) {
+            $this->warnCheck('sso.per_module_secrets', 'Could not check per-module secrets: ' . $e->getMessage());
+        }
+
+        // 7e-xi. mTLS config state (Phase 12)
+        try {
+            $mtlsRequired = (bool) config('glasshouse_sso.backchannel.require_mtls', false);
+            $bcEnabled    = (bool) config('glasshouse_sso.backchannel.enabled', false);
+
+            if ($mtlsRequired) {
+                $header = config('glasshouse_sso.backchannel.mtls_verified_header', 'X-Client-Cert-Verified');
+                $this->pass('sso.backchannel_mtls', "mTLS required on back-channel redeem endpoint (header: {$header})");
+            } elseif ($bcEnabled && app()->environment('production')) {
+                $this->warnCheck('sso.backchannel_mtls', 'Back-channel enabled but GLASSPORTAL_BACKCHANNEL_REQUIRE_MTLS is false — consider enabling mTLS in production');
+            } else {
+                $this->warnCheck('sso.backchannel_mtls', 'mTLS not required on back-channel redeem endpoint (acceptable in dev/staging)');
+            }
+        } catch (\Throwable $e) {
+            $this->warnCheck('sso.backchannel_mtls', 'Could not check mTLS config: ' . $e->getMessage());
+        }
+
         // 7f. Dev SSO consumer route (Phase 9) — only expected in local/testing
         try {
             $routes    = app('router')->getRoutes();

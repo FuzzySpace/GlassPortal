@@ -108,6 +108,32 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Per-Module Signing Secrets — Phase 12
+    |--------------------------------------------------------------------------
+    |
+    | Maps module keys to dedicated HMAC signing secrets for stronger
+    | isolation between modules. When a per-module secret is set for a module,
+    | it takes priority over the global signing_secret for both issuance and
+    | verification.
+    |
+    | Priority for issuance:  per_module_secrets[moduleKey] → signing_secret
+    | Priority for verify:    per_module_secrets[audience] → keys[kid] → signing_secret
+    |
+    | Example:
+    |   'per_module_secrets' => [
+    |       'glasspanel' => env('GLASSPORTAL_MODULE_SECRET_GLASSPANEL', ''),
+    |       'aria'       => env('GLASSPORTAL_MODULE_SECRET_ARIA', ''),
+    |   ],
+    |
+    */
+    'per_module_secrets' => [
+        // Add entries for each module that should use its own signing secret.
+        // 'glasspanel' => env('GLASSPORTAL_MODULE_SECRET_GLASSPANEL', ''),
+        // 'aria'       => env('GLASSPORTAL_MODULE_SECRET_ARIA', ''),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Dev SSO Consume Route — Phase 9
     |--------------------------------------------------------------------------
     |
@@ -162,6 +188,14 @@ return [
         // When true: the module_key in the redeem request must exactly match the
         // module_key encoded in the code payload. Always true in production.
         'strict_module_match' => (bool) env('GLASSPORTAL_BACKCHANNEL_STRICT_MODULE', true),
+
+        // mTLS client-certificate enforcement (Phase 12).
+        // When require_mtls is true, the reverse proxy must verify the client
+        // certificate and forward the result in the configured header.
+        // Set GLASSPORTAL_BACKCHANNEL_REQUIRE_MTLS=true in production.
+        'require_mtls'         => (bool)   env('GLASSPORTAL_BACKCHANNEL_REQUIRE_MTLS', false),
+        'mtls_verified_header' => (string) env('GLASSPORTAL_BACKCHANNEL_MTLS_HEADER', 'X-Client-Cert-Verified'),
+        'mtls_verified_value'  => (string) env('GLASSPORTAL_BACKCHANNEL_MTLS_VERIFIED_VALUE', 'SUCCESS'),
 
     ],
 

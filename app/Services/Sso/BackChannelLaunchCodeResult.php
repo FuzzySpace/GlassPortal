@@ -86,4 +86,28 @@ readonly class BackChannelLaunchCodeResult
             role: null,
         );
     }
+
+    /**
+     * Creates a failure result with identity context from the payload.
+     *
+     * Used when the code was consumed but a post-consumption check failed —
+     * we have context for auditing but must not return PII (email, name).
+     * The raw code must never be included in the payload passed here.
+     */
+    public static function failureWithContext(string $reason, array $payload): self
+    {
+        return new self(
+            ok: false,
+            reason: $reason,
+            code: null,
+            expiresAt: isset($payload['expires_at']) ? (int) $payload['expires_at'] : null,
+            moduleKey: $payload['module_key'] ?? null,
+            userId: $payload['user_id'] ?? null,
+            orgId: $payload['org_id'] ?? null,
+            moduleLinkId: $payload['module_link_id'] ?? null,
+            email: null,   // never return PII in failure context
+            name: null,
+            role: null,
+        );
+    }
 }
