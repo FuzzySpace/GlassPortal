@@ -100,7 +100,15 @@ class SignedLaunchTokenService
             'jti'   => $jti,
         ];
 
-        $token = $this->buildToken($claims, $secret);
+        // Determine which kid to embed: active key_registry entry takes precedence
+        // over the legacy key_id flat config. Per-module tokens don't embed a kid
+        // because the audience already identifies the secret unambiguously.
+        $activeKey = $this->resolver->hasPerModuleSecret($link->module_key)
+            ? null
+            : $this->resolver->activeKeyInfo();
+
+        $kidOverride = $activeKey['kid'] ?? null;
+        $token = $this->buildToken($claims, $secret, $kidOverride);
 
         // Track issued JTI in cache for replay detection.
         // Cache failure degrades gracefully — the token is still valid,
@@ -140,12 +148,16 @@ class SignedLaunchTokenService
 
         [$headerB64, $payloadB64, $sigB64] = $parts;
 
-        // Resolve signing secret: explicit override > resolver (per-module → kid → global)
+        // Resolve signing secret: explicit override > resolver (per-module → key_registry → flat keys → global)
         if ($secret !== null && $secret !== '') {
             $resolvedSecret = $secret;
         } else {
             $headerData = json_decode($this->b64UrlDecode($headerB64), true) ?? [];
             $kid        = (string) ($headerData['kid'] ?? '');
+
+            // An empty resolved secret means the kid was explicitly disabled.
+            // We still proceed — the HMAC compare will fail, producing the same
+            // "signature verification failed" error without leaking which path was taken.
             $resolvedSecret = $this->resolver->resolveForVerification($expectedAudience, $kid);
         }
 
@@ -209,11 +221,14 @@ class SignedLaunchTokenService
     // Internal helpers
     // =========================================================================
 
-    private function buildToken(array $claims, string $secret): string
+    private function buildToken(array $claims, string $secret, ?string $kidOverride = null): string
     {
         $headerData = ['alg' => 'HS256', 'typ' => 'SLP'];
-        if ($this->keyId !== '') {
-            $headerData['kid'] = $this->keyId;
+
+        // kid priority: explicit override (from key_registry active_kid) → legacy key_id
+        $kid = $kidOverride ?? ($this->keyId !== '' ? $this->keyId : null);
+        if ($kid !== null && $kid !== '') {
+            $headerData['kid'] = $kid;
         }
         $header  = $this->b64UrlEncode(json_encode($headerData));
         $payload = $this->b64UrlEncode(

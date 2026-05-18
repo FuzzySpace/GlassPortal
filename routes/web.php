@@ -7,6 +7,7 @@ use App\Http\Controllers\Admin\ModuleLinksController;
 use App\Http\Controllers\Admin\ModulesController;
 use App\Http\Controllers\Admin\ProvisioningController;
 use App\Http\Controllers\Admin\ServicesController;
+use App\Http\Controllers\Api\JwksController;
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Dev\SsoConsumeController;
 use App\Http\Controllers\Portal\DashboardController as PortalDashboardController;
@@ -25,6 +26,20 @@ use Illuminate\Support\Facades\Route;
 Route::get('/', function () {
     return view('welcome');
 })->name('home');
+
+/*
+|--------------------------------------------------------------------------
+| Well-known / JWKS endpoint — Phase 15
+|--------------------------------------------------------------------------
+|
+| Publishes safe key metadata (no secrets) for downstream modules.
+| Placed in web.php (not api.php) because api.php adds an /api/ prefix.
+| No authentication — key metadata is intentionally public.
+|
+*/
+
+Route::get('/.well-known/glassportal/jwks.json', [JwksController::class, 'index'])
+    ->name('glassportal.jwks');
 
 /*
 |--------------------------------------------------------------------------
