@@ -476,7 +476,6 @@ class GlassPortalHealthCheck extends Command
             } elseif ($legacySecret !== '') {
                 $this->pass('sso.keys_configured', 'Using legacy signing_secret (no key_registry — acceptable in dev; migrate to key_registry for rotation support)');
             } else {
-                // No active links = warn; active links = fail
                 $hasSignedLinks = false;
                 try {
                     $hasSignedLinks = \App\Models\OrganizationModuleLink::whereIn('auth_mode', ['signed_launch', 'backchannel_launch'])
@@ -541,6 +540,55 @@ class GlassPortalHealthCheck extends Command
             $this->warnCheck('sso.legacy_secret_fallback', 'Could not check legacy secret fallback: ' . $e->getMessage());
         }
 
+        // 7j. SIONA connector checks (Phase 18)
+
+        // 7j-i. SIONA present in both registries
+        try {
+            $sionaInModules = config('glasshouse.modules.siona') !== null;
+            $sionaInLaunch  = config('glasshouse.launch_modules.siona') !== null;
+
+            if ($sionaInModules && $sionaInLaunch) {
+                $this->pass('siona.module_registry', 'SIONA present in connector registry and customer launch registry');
+            } else {
+                $missing = implode(', ', array_filter([
+                    $sionaInModules ? null : 'glasshouse.modules.siona',
+                    $sionaInLaunch  ? null : 'glasshouse.launch_modules.siona',
+                ]));
+                $this->warnCheck('siona.module_registry', "SIONA missing from: {$missing} — check config/glasshouse.php");
+            }
+        } catch (\Throwable $e) {
+            $this->warnCheck('siona.module_registry', 'Could not check SIONA module registry: ' . $e->getMessage());
+        }
+
+        // 7j-ii. SIONA config state
+        try {
+            $sionaEnabled = (bool) config('siona.enabled', false);
+            $sionaUrl     = (string) config('siona.api_url', '');
+
+            if ($sionaEnabled && $sionaUrl !== '') {
+                $this->pass('siona.config', "SIONA connector enabled, API URL configured: {$sionaUrl}");
+            } elseif ($sionaEnabled) {
+                $this->warnCheck('siona.config', 'SIONA enabled but SIONA_API_URL is not set — health probing disabled');
+            } else {
+                $this->warnCheck('siona.config', 'SIONA connector not enabled (set SIONA_ENABLED=true and SIONA_API_URL to activate)');
+            }
+        } catch (\Throwable $e) {
+            $this->warnCheck('siona.config', 'Could not check SIONA config: ' . $e->getMessage());
+        }
+
+        // 7j-iii. SIONA connector health route registered
+        try {
+            $routes     = app('router')->getRoutes();
+            $sionaRoute = $routes->getByName('api.connectors.siona.health');
+            if ($sionaRoute !== null) {
+                $this->pass('siona.connector_route', 'api.connectors.siona.health route registered at /api/connectors/siona/health');
+            } else {
+                $this->warnCheck('siona.connector_route', 'api.connectors.siona.health route not found — check routes/api.php');
+            }
+        } catch (\Throwable $e) {
+            $this->warnCheck('siona.connector_route', 'Could not check SIONA connector route: ' . $e->getMessage());
+        }
+
         // 8. GlassBilling connector
         try {
             $health = $billing->health();
@@ -553,7 +601,6 @@ class GlassPortalHealthCheck extends Command
             } elseif ($status === 'unconfigured') {
                 $this->warnCheck('glassbilling.health', 'GlassBilling: not configured (set GLASSBILLING_BASE_URL + GLASSBILLING_API_TOKEN)');
             } else {
-                // offline or auth error
                 $httpStatus = $health['http_status'] ?? null;
                 $isAuthError = $httpStatus === 401 || $httpStatus === 403;
 
