@@ -214,13 +214,13 @@ return [
             'icon'         => '⊞',
         ],
 
-        // Phase 18: SIONA customer-facing launchpad entry.
+        // Phase 18/19: SIONA customer-facing launchpad entry.
         // Appears only when an organization_module_link with module_key=siona exists.
-        // Supported auth modes: standalone, signed_launch, backchannel_launch.
         'siona' => [
-            'display_name' => 'SIONA',
-            'description'  => 'AI-assisted sales intelligence, ICP validation, prospect research, and outreach workflow.',
-            'icon'         => '◆',
+            'display_name'         => 'SIONA',
+            'description'          => 'AI-assisted sales intelligence, ICP validation, prospect research, and outreach workflow.',
+            'icon'                 => '◆',
+            'supported_auth_modes' => ['standalone', 'signed_launch', 'backchannel_launch'],
         ],
 
     ],

@@ -23,26 +23,27 @@
 
 <div class="alert alert-info" style="margin-bottom:1.5rem">
     <strong>Secure launch:</strong>
-    Modules marked <em>signed launch</em> use a time-limited, cryptographically signed
-    handoff. Modules with <em>standalone</em> or <em>local</em> auth require separate
-    credentials. SSO (shared_session, oauth) is planned for a future release.
+    Modules marked <em>signed launch</em> or <em>back-channel launch</em> use a time-limited,
+    cryptographically signed handoff. Modules with <em>standalone</em> or <em>local</em> auth
+    require separate credentials. SSO (shared_session, oauth) is planned for a future release.
 </div>
 
 <div style="display:grid;gap:1rem;grid-template-columns:repeat(auto-fill,minmax(300px,1fr))">
     @forelse($modules as $key => $module)
     @php
-        $linked          = ($module['status'] ?? 'not_linked') !== 'not_linked';
-        $active          = $module['status'] === 'active';
-        $hasUrl          = !empty($module['launch_url']);
-        $setup           = $module['setup_required'] ?? true;
-        $canLaunch       = $module['can_launch'] ?? false;
-        $warnings        = $module['warnings'] ?? [];
-        $authMode        = $module['auth_mode'] ?? 'standalone';
-        $isSignedLaunch  = $authMode === 'signed_launch';
-        $isStubSso       = in_array($authMode, ['shared_session', 'oauth']);
-        $isSso           = $isSignedLaunch || $isStubSso;
-        $linkId          = $module['link_id'] ?? null;
-        $icon            = config("glasshouse.launch_modules.{$key}.icon", '⊕');
+        $linked              = ($module['status'] ?? 'not_linked') !== 'not_linked';
+        $active              = $module['status'] === 'active';
+        $hasUrl              = !empty($module['launch_url']);
+        $setup               = $module['setup_required'] ?? true;
+        $canLaunch           = $module['can_launch'] ?? false;
+        $warnings            = $module['warnings'] ?? [];
+        $authMode            = $module['auth_mode'] ?? 'standalone';
+        $isSignedLaunch      = $authMode === 'signed_launch';
+        $isBackchannelLaunch = $authMode === 'backchannel_launch';
+        $isStubSso           = in_array($authMode, ['shared_session', 'oauth']);
+        $isSso               = $isSignedLaunch || $isBackchannelLaunch || $isStubSso;
+        $linkId              = $module['link_id'] ?? null;
+        $icon                = config("glasshouse.launch_modules.{$key}.icon", '⊕');
     @endphp
     <div class="card" style="display:flex;flex-direction:column;gap:.75rem">
         <div style="display:flex;justify-content:space-between;align-items:flex-start">
@@ -76,6 +77,9 @@
             @if($isSignedLaunch)
                 <span class="text-dim text-sm">Auth: <code>signed launch</code></span>
                 <span style="color:var(--accent);font-size:.75rem">⊛ secure</span>
+            @elseif($isBackchannelLaunch)
+                <span class="text-dim text-sm">Auth: <code>back-channel launch</code></span>
+                <span style="color:var(--accent);font-size:.75rem">⊛ secure</span>
             @elseif($isStubSso)
                 <span class="text-dim text-sm">Auth: <code>{{ $authMode }}</code></span>
                 <span class="text-dim text-sm">(Phase 9+)</span>
@@ -92,16 +96,21 @@
             @if(!$linked)
                 <span class="text-sm text-dim">Not linked to your account — contact support.</span>
             @elseif($isSignedLaunch && $canLaunch && $linkId)
-                {{-- Phase 8: signed launch is operational --}}
                 <a href="{{ route('portal.module.launch', $linkId) }}"
                    style="display:inline-block;padding:.4rem .9rem;background:var(--accent-d);color:#fff;border-radius:.375rem;font-size:.875rem;font-weight:500;text-decoration:none">
                     Secure launch →
                 </a>
             @elseif($isSignedLaunch && $linkId)
-                {{-- signed_launch configured but setup not complete --}}
+                <span class="text-sm text-dim" style="color:var(--warning)">Setup required — contact support.</span>
+            @elseif($isBackchannelLaunch && $canLaunch && $linkId)
+                {{-- Phase 11/19: back-channel launch is operational --}}
+                <a href="{{ route('portal.module.launch', $linkId) }}"
+                   style="display:inline-block;padding:.4rem .9rem;background:var(--accent-d);color:#fff;border-radius:.375rem;font-size:.875rem;font-weight:500;text-decoration:none">
+                    Secure launch →
+                </a>
+            @elseif($isBackchannelLaunch && $linkId)
                 <span class="text-sm text-dim" style="color:var(--warning)">Setup required — contact support.</span>
             @elseif($isStubSso && $linkId)
-                {{-- SSO stub — routes through launch controller for audit logging --}}
                 <span class="text-sm text-dim" style="color:var(--warning)">Setup required — contact support.</span>
                 <div style="margin-top:.5rem">
                     <a href="{{ route('portal.module.launch', $linkId) }}"
