@@ -1,0 +1,104 @@
+name: Tests
+
+on:
+  push:
+    branches:
+      - main
+      - 'claude/**'
+      - 'glassportal-**'
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  # ─────────────────────────────────────────────────────────────────────────────
+  # Application test suite (Laravel + SQLite)
+  # ─────────────────────────────────────────────────────────────────────────────
+  app-tests:
+    name: App tests (PHP ${{ matrix.php }})
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.3']
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: dom, curl, libxml, mbstring, zip, pdo, sqlite, pdo_sqlite, bcmath, intl, fileinfo, tokenizer, xml
+          ini-values: error_reporting=E_ALL
+          coverage: none
+
+      - name: Cache Composer packages
+        uses: actions/cache@v4
+        with:
+          path: vendor
+          key: ${{ runner.os }}-php-${{ matrix.php }}-${{ hashFiles('**/composer.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-php-${{ matrix.php }}-
+
+      - name: Validate root composer.json
+        run: composer validate --no-check-publish --strict
+
+      - name: Install dependencies
+        run: composer install --no-interaction --prefer-dist --optimize-autoloader
+
+      - name: Validate SDK package composer.json
+        run: composer validate --working-dir=packages/glasshouse/portal-auth --no-check-publish
+
+      - name: Dump autoload (optimized)
+        run: composer dump-autoload -o
+
+      - name: Copy .env
+        run: cp .env.example .env
+
+      - name: Generate app key
+        run: php artisan key:generate
+
+      - name: Clear caches
+        run: php artisan optimize:clear
+
+      - name: Run application tests
+        run: php artisan test --stop-on-failure
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # SDK standalone tests (no Laravel — pure PHPUnit)
+  # ─────────────────────────────────────────────────────────────────────────────
+  sdk-standalone:
+    name: SDK standalone tests (PHP ${{ matrix.php }})
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: packages/glasshouse/portal-auth
+
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.3']
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: mbstring, tokenizer, xml
+          coverage: none
+
+      - name: Validate package composer.json
+        run: composer validate --no-check-publish --strict
+
+      - name: Install package dev dependencies
+        run: composer install --no-interaction --prefer-dist
+
+      - name: Run SDK standalone tests
+        run: ./vendor/bin/phpunit --colors=always

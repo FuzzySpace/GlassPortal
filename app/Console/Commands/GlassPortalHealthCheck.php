@@ -390,7 +390,43 @@ class GlassPortalHealthCheck extends Command
             $this->warnCheck('rate_limits.module_launch', 'Could not check launch rate limit config: ' . $e->getMessage());
         }
 
-        // 7h. Portal-auth SDK autoload check (Phase 13)
+        // 7h. Portal-auth SDK readiness (Phase 13/14)
+
+        // 7h-i. Package path present
+        try {
+            $pkgPath = base_path('packages/glasshouse/portal-auth');
+            if (is_dir($pkgPath)) {
+                $this->pass('sso.portal_auth_sdk.path', "SDK package directory present: packages/glasshouse/portal-auth");
+            } else {
+                $this->warnCheck('sso.portal_auth_sdk.path', 'SDK package directory missing: packages/glasshouse/portal-auth — run: git submodule update or restore the package');
+            }
+        } catch (\Throwable $e) {
+            $this->warnCheck('sso.portal_auth_sdk.path', 'Could not check SDK path: ' . $e->getMessage());
+        }
+
+        // 7h-ii. Package composer.json valid and correct
+        try {
+            $pkgComposer = base_path('packages/glasshouse/portal-auth/composer.json');
+            if (! file_exists($pkgComposer)) {
+                $this->warnCheck('sso.portal_auth_sdk.composer', 'SDK composer.json missing — run: composer dump-autoload');
+            } else {
+                $manifest = json_decode(file_get_contents($pkgComposer), true);
+                $pkgName  = $manifest['name'] ?? '';
+                $phpReq   = $manifest['require']['php'] ?? '';
+                $ns       = array_key_first((array) ($manifest['autoload']['psr-4'] ?? []));
+
+                if ($pkgName === 'glasshouse/portal-auth' && str_contains($phpReq, '8.') && $ns === 'GlassHouse\\PortalAuth\\') {
+                    $ver = $manifest['version'] ?? 'unversioned';
+                    $this->pass('sso.portal_auth_sdk.composer', "SDK composer.json valid — {$pkgName} v{$ver}, PHP {$phpReq}, namespace {$ns}");
+                } else {
+                    $this->warnCheck('sso.portal_auth_sdk.composer', "SDK composer.json unexpected values — name={$pkgName}, php={$phpReq}, ns={$ns}");
+                }
+            }
+        } catch (\Throwable $e) {
+            $this->warnCheck('sso.portal_auth_sdk.composer', 'Could not validate SDK composer.json: ' . $e->getMessage());
+        }
+
+        // 7h-iii. SDK classes autoloadable
         try {
             $coreClasses = [
                 \GlassHouse\PortalAuth\Sso\SignedLaunchVerifier::class,
@@ -403,23 +439,25 @@ class GlassPortalHealthCheck extends Command
                 \GlassHouse\PortalAuth\DTO\SignedLaunchVerificationResult::class,
                 \GlassHouse\PortalAuth\DTO\VerifiedLaunchContext::class,
                 \GlassHouse\PortalAuth\DTO\BackChannelRedeemResult::class,
+                \GlassHouse\PortalAuth\Exceptions\PortalAuthException::class,
                 \GlassHouse\PortalAuth\Laravel\PortalAuthServiceProvider::class,
+                \GlassHouse\PortalAuth\Laravel\Middleware\VerifySignedModuleLaunch::class,
+                \GlassHouse\PortalAuth\Laravel\Middleware\VerifyBackChannelMtls::class,
             ];
             $missing = [];
             foreach ($coreClasses as $class) {
                 if (! class_exists($class) && ! interface_exists($class)) {
-                    $missing[] = $class;
+                    $missing[] = basename(str_replace('\\', '/', $class));
                 }
             }
             if (empty($missing)) {
-                $this->pass('sso.portal_auth_sdk', 'glasshouse/portal-auth SDK classes are autoloadable (' . count($coreClasses) . ' checked)');
+                $this->pass('sso.portal_auth_sdk', 'SDK classes autoloadable (' . count($coreClasses) . ' checked)');
             } else {
-                // Warn rather than fail: missing SDK classes in dev typically means
-                // composer dump-autoload hasn't been run after cloning. Not fatal outside production.
+                // Warn: missing classes in dev typically means composer dump-autoload hasn't been run.
                 $this->warnCheck('sso.portal_auth_sdk', 'SDK classes not autoloadable: ' . implode(', ', $missing) . ' — run: composer dump-autoload');
             }
         } catch (\Throwable $e) {
-            $this->warnCheck('sso.portal_auth_sdk', 'Could not check portal-auth SDK: ' . $e->getMessage());
+            $this->warnCheck('sso.portal_auth_sdk', 'Could not check SDK classes: ' . $e->getMessage());
         }
 
         // 8. GlassBilling connector

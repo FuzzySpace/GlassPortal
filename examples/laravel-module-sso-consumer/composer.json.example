@@ -1,0 +1,28 @@
+{
+    "name": "glasshouse/glasspanel",
+    "description": "GlassPanel — example module consuming glasshouse/portal-auth SDK",
+    "type": "project",
+    "require": {
+        "php": "^8.3",
+        "glasshouse/portal-auth": "^1.0",
+        "laravel/framework": "^11.0"
+    },
+    "repositories": [
+        {
+            "_comment": "Remove this block when glasshouse/portal-auth is on Satis/Packagist",
+            "type": "path",
+            "url": "/srv/glassportal/packages/glasshouse/portal-auth",
+            "options": { "symlink": true }
+        }
+    ],
+    "autoload": {
+        "psr-4": {
+            "App\\": "app/"
+        }
+    },
+    "extra": {
+        "laravel": {
+            "dont-discover": []
+        }
+    }
+}
