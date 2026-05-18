@@ -145,6 +145,21 @@ return [
             'notes'           => 'VM / VPS / container infrastructure (Proxmox backend).',
         ],
 
+        // Phase 18: SIONA — external AI sales module
+        // GlassPortal owns registry, health check, and launch bridge only.
+        // SIONA source code lives in its own repository.
+        'siona' => [
+            'enabled'         => (bool) env('SIONA_ENABLED', false),
+            'display_name'    => 'SIONA',
+            'full_name'       => 'Sales Intelligence & Outreach Navigation Assistant',
+            'category'        => 'ai_sales',
+            'base_url'        => env('SIONA_API_URL', ''),
+            'token'           => env('SIONA_API_TOKEN', ''),
+            'timeout'         => (int) env('SIONA_TIMEOUT', 5),
+            'health_endpoint' => '/api/health',
+            'notes'           => 'AI-assisted ICP validation, prospect intelligence, outreach workflow, and sales pipeline generation. Configure SIONA_API_URL and SIONA_API_TOKEN to enable live health probing.',
+        ],
+
     ],
 
     /*
@@ -197,6 +212,15 @@ return [
             'display_name' => 'Infrastructure',
             'description'  => 'VPS, VM, and container management.',
             'icon'         => '⊞',
+        ],
+
+        // Phase 18: SIONA customer-facing launchpad entry.
+        // Appears only when an organization_module_link with module_key=siona exists.
+        // Supported auth modes: standalone, signed_launch, backchannel_launch.
+        'siona' => [
+            'display_name' => 'SIONA',
+            'description'  => 'AI-assisted sales intelligence, ICP validation, prospect research, and outreach workflow.',
+            'icon'         => '◆',
         ],
 
     ],
