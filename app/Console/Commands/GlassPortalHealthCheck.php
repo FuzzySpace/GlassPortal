@@ -589,6 +589,64 @@ class GlassPortalHealthCheck extends Command
             $this->warnCheck('siona.connector_route', 'Could not check SIONA connector route: ' . $e->getMessage());
         }
 
+        // 7k. SIONA Phase 19 — connector client and launch readiness
+
+        // 7k-i. SionaConnectorClient resolvable from container
+        try {
+            $sionaClient = app(\App\Services\Siona\SionaConnectorClient::class);
+            $this->pass('siona.connector_client', 'SionaConnectorClient is resolvable from container');
+        } catch (\Throwable $e) {
+            $this->checkFail('siona.connector_client', 'SionaConnectorClient not resolvable: ' . $e->getMessage());
+            $allPassed = false;
+        }
+
+        // 7k-ii. SIONA launch registry has supported_auth_modes
+        try {
+            $sionald = config('glasshouse.launch_modules.siona', null);
+            $modes   = $sionald['supported_auth_modes'] ?? [];
+            $required = ['standalone', 'signed_launch', 'backchannel_launch'];
+            $missing  = array_diff($required, $modes);
+
+            if ($sionald !== null && empty($missing)) {
+                $this->pass('siona.launch_registry', 'SIONA launch_modules entry has all required supported_auth_modes: ' . implode(', ', $modes));
+            } elseif ($sionald !== null) {
+                $this->warnCheck('siona.launch_registry', 'SIONA launch_modules entry is missing supported_auth_modes: ' . implode(', ', $missing));
+            } else {
+                $this->warnCheck('siona.launch_registry', 'SIONA not found in glasshouse.launch_modules — check config/glasshouse.php');
+            }
+        } catch (\Throwable $e) {
+            $this->warnCheck('siona.launch_registry', 'Could not check SIONA launch registry: ' . $e->getMessage());
+        }
+
+        // 7k-iii. organization_module_links.metadata column present (supports workspace mapping)
+        try {
+            if (Schema::hasColumn('organization_module_links', 'metadata')) {
+                $this->pass('siona.module_link_support', 'organization_module_links.metadata column present — supports SIONA workspace mapping via metadata JSON');
+            } else {
+                $this->warnCheck('siona.module_link_support', 'organization_module_links.metadata column missing — SIONA workspace mapping unavailable');
+            }
+        } catch (\Throwable $e) {
+            $this->warnCheck('siona.module_link_support', 'Could not check metadata column: ' . $e->getMessage());
+        }
+
+        // 7k-iv. SIONA health probe — warn-only
+        try {
+            $sionaClient = app(\App\Services\Siona\SionaConnectorClient::class);
+            $health      = $sionaClient->health();
+            $status      = $health['status'];
+            $latency     = isset($health['latency_ms']) ? " ({$health['latency_ms']}ms)" : '';
+
+            if ($status === 'ok') {
+                $this->pass('siona.health_probe', "SIONA health probe: ok{$latency}");
+            } elseif ($status === 'unconfigured') {
+                $this->warnCheck('siona.health_probe', 'SIONA health probe: unconfigured — set SIONA_ENABLED=true and SIONA_API_URL to enable');
+            } else {
+                $this->warnCheck('siona.health_probe', "SIONA health probe: {$status} — {$health['message']}");
+            }
+        } catch (\Throwable $e) {
+            $this->warnCheck('siona.health_probe', 'SIONA health probe failed: ' . $e->getMessage());
+        }
+
         // 8. GlassBilling connector
         try {
             $health = $billing->health();
