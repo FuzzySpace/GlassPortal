@@ -1,10 +1,15 @@
 {
     "$schema": "https://getcomposer.org/schema.json",
     "name": "glasshouse/portal-auth",
-    "version": "1.0.0",
-    "description": "GlassPortal module authentication SDK — signed launch and back-channel SSO verification.",
+    "description": "GlassPortal module authentication SDK \u2014 signed launch and back-channel SSO verification.",
     "type": "library",
-    "keywords": ["glasshouse", "glassportal", "sso", "signed-launch", "portal-auth"],
+    "keywords": [
+        "glasshouse",
+        "glassportal",
+        "sso",
+        "signed-launch",
+        "portal-auth"
+    ],
     "license": "MIT",
     "require": {
         "php": "^8.3"
