@@ -460,6 +460,87 @@ class GlassPortalHealthCheck extends Command
             $this->warnCheck('sso.portal_auth_sdk', 'Could not check SDK classes: ' . $e->getMessage());
         }
 
+        // 7i. Phase 15 — key registry / JWKS
+
+        // 7i-i. At least one signing key configured (registry or legacy)
+        try {
+            $keyResolver = app(\App\Services\Sso\SigningKeyResolver::class);
+            $legacySecret = (string) config('glasshouse_sso.signing_secret', '');
+            $hasRegistry  = $keyResolver->hasRegistry();
+
+            if ($keyResolver->hasActiveKey()) {
+                $activeKid = config('glasshouse_sso.active_kid', '');
+                $this->pass('sso.keys_configured', "Active signing key configured (kid: {$activeKid})");
+            } elseif ($hasRegistry) {
+                $this->warnCheck('sso.keys_configured', 'key_registry is present but active_kid is not set or does not point to an active entry — set GLASSPORTAL_SIGNED_LAUNCH_ACTIVE_KID');
+            } elseif ($legacySecret !== '') {
+                $this->pass('sso.keys_configured', 'Using legacy signing_secret (no key_registry — acceptable in dev; migrate to key_registry for rotation support)');
+            } else {
+                // No active links = warn; active links = fail
+                $hasSignedLinks = false;
+                try {
+                    $hasSignedLinks = \App\Models\OrganizationModuleLink::whereIn('auth_mode', ['signed_launch', 'backchannel_launch'])
+                        ->where('status', 'active')
+                        ->exists();
+                } catch (\Throwable) {}
+
+                if ($hasSignedLinks) {
+                    $this->checkFail('sso.keys_configured', 'No signing key configured but active SSO links exist — set GLASSPORTAL_SIGNED_LAUNCH_SECRET or configure key_registry');
+                    $allPassed = false;
+                } else {
+                    $this->warnCheck('sso.keys_configured', 'No signing key configured (no active SSO links — set GLASSPORTAL_SIGNED_LAUNCH_SECRET before enabling)');
+                }
+            }
+        } catch (\Throwable $e) {
+            $this->warnCheck('sso.keys_configured', 'Could not check signing key config: ' . $e->getMessage());
+        }
+
+        // 7i-ii. active_kid validity
+        try {
+            $activeKid = (string) config('glasshouse_sso.active_kid', '');
+            if ($activeKid === '') {
+                $this->warnCheck('sso.active_kid', 'GLASSPORTAL_SIGNED_LAUNCH_ACTIVE_KID not set — using legacy mode (acceptable in dev)');
+            } else {
+                $keyResolver = app(\App\Services\Sso\SigningKeyResolver::class);
+                if ($keyResolver->hasActiveKey()) {
+                    $this->pass('sso.active_kid', "active_kid '{$activeKid}' resolves to a valid active key_registry entry");
+                } else {
+                    $registry = (array) config('glasshouse_sso.key_registry', []);
+                    $entry    = $registry[$activeKid] ?? null;
+                    $status   = $entry['status'] ?? 'missing';
+                    $this->warnCheck('sso.active_kid', "active_kid '{$activeKid}' is set but status is '{$status}' — key not usable for issuance");
+                }
+            }
+        } catch (\Throwable $e) {
+            $this->warnCheck('sso.active_kid', 'Could not check active_kid config: ' . $e->getMessage());
+        }
+
+        // 7i-iii. JWKS route registered
+        try {
+            $routes    = app('router')->getRoutes();
+            $jwksRoute = $routes->getByName('glassportal.jwks');
+            if ($jwksRoute !== null) {
+                $this->pass('sso.jwks_route', 'glassportal.jwks route registered at /.well-known/glassportal/jwks.json');
+            } else {
+                $this->warnCheck('sso.jwks_route', 'glassportal.jwks route not found — check routes/web.php');
+            }
+        } catch (\Throwable $e) {
+            $this->warnCheck('sso.jwks_route', 'Could not check JWKS route: ' . $e->getMessage());
+        }
+
+        // 7i-iv. Legacy secret fallback warning
+        try {
+            $hasRegistry  = count((array) config('glasshouse_sso.key_registry', [])) > 0;
+            $legacySecret = (string) config('glasshouse_sso.signing_secret', '');
+            if (! $hasRegistry && $legacySecret !== '' && app()->environment('production')) {
+                $this->warnCheck('sso.legacy_secret_fallback', 'Using global signing_secret without key_registry in production — consider migrating to key_registry for rotation support');
+            } elseif (! $hasRegistry && $legacySecret !== '') {
+                $this->pass('sso.legacy_secret_fallback', 'Legacy single-secret mode (no key_registry — acceptable in dev)');
+            }
+        } catch (\Throwable $e) {
+            $this->warnCheck('sso.legacy_secret_fallback', 'Could not check legacy secret fallback: ' . $e->getMessage());
+        }
+
         // 8. GlassBilling connector
         try {
             $health = $billing->health();

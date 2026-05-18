@@ -84,27 +84,80 @@ return [
     | compatibility mode). On verification, tokens without a kid are verified
     | against signing_secret regardless of the keys array.
     |
+    | Phase 15 note: prefer active_kid + key_registry over this flat setting.
+    | key_id is preserved for backward compatibility.
+    |
     */
     'key_id' => env('GLASSPORTAL_SIGNED_LAUNCH_KEY_ID', ''),
 
     /*
     |--------------------------------------------------------------------------
-    | Key Map — Phase 9
+    | Key Map — Phase 9 (flat, legacy)
     |--------------------------------------------------------------------------
     |
     | Maps key IDs to signing secrets for key rotation support.
-    | Add entries here (or override in environment-specific config files).
+    | Phase 15 introduces key_registry (below) which supersedes this for new
+    | deployments. Entries here are still consulted as a fallback during
+    | verification when key_registry does not contain the requested kid.
+    |
     | Example:
     |   'keys' => [
     |       'v1' => env('GLASSPORTAL_SIGNED_LAUNCH_SECRET_V1', ''),
     |       'v2' => env('GLASSPORTAL_SIGNED_LAUNCH_SECRET_V2', ''),
     |   ],
     |
-    | During rotation: set key_id to the new kid, keep the old kid in keys[].
-    | Old tokens (from the previous kid) will verify against their key in this map.
-    |
     */
     'keys' => [],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Active Key ID — Phase 15
+    |--------------------------------------------------------------------------
+    |
+    | The kid that should be used to SIGN new tokens. Must match an entry in
+    | key_registry with status "active". Leave empty to fall back to the legacy
+    | key_id / signing_secret pair.
+    |
+    */
+    'active_kid' => env('GLASSPORTAL_SIGNED_LAUNCH_ACTIVE_KID', ''),
+
+    /*
+    |--------------------------------------------------------------------------
+    | Key Registry — Phase 15
+    |--------------------------------------------------------------------------
+    |
+    | Rich key map with lifecycle metadata. Each entry has:
+    |   secret      — HMAC-SHA256 signing secret (from env, never hardcoded)
+    |   algorithm   — signing algorithm (currently only "HS256" is supported)
+    |   status      — "active" | "previous" | "disabled"
+    |                   active   : used for new token issuance; valid for verify
+    |                   previous : no longer used for issuance; still valid for verify
+    |                   disabled : rejected on verify (token tampering guard)
+    |   created_at  — ISO 8601 date (informational)
+    |   rotated_at  — ISO 8601 date when this key stopped being active (informational)
+    |
+    | JWKS endpoint exposes kid, alg, status, and iss — NEVER the raw secret.
+    | Disabled keys are excluded from the JWKS response entirely.
+    |
+    | Example (add to environment-specific config or override in .env):
+    |   'key_registry' => [
+    |       'v1' => [
+    |           'secret'     => env('GLASSPORTAL_SIGNED_LAUNCH_SECRET_V1', ''),
+    |           'algorithm'  => 'HS256',
+    |           'status'     => 'previous',
+    |           'created_at' => '2025-01-01',
+    |           'rotated_at' => '2026-01-01',
+    |       ],
+    |       'v2' => [
+    |           'secret'     => env('GLASSPORTAL_SIGNED_LAUNCH_SECRET_V2', ''),
+    |           'algorithm'  => 'HS256',
+    |           'status'     => 'active',
+    |           'created_at' => '2026-01-01',
+    |       ],
+    |   ],
+    |
+    */
+    'key_registry' => [],
 
     /*
     |--------------------------------------------------------------------------
