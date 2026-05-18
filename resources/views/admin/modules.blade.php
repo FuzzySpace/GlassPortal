@@ -14,6 +14,45 @@
     </div>
 </div>
 
+{{-- SIONA connector status panel (Phase 19) --}}
+@if(isset($sionaHealth))
+@php
+    $sionaStatus  = $sionaHealth['status'] ?? 'unconfigured';
+    $sionaOk      = $sionaStatus === 'ok';
+    $sionaMsg     = $sionaHealth['message'] ?? '';
+    $sionaLatency = $sionaHealth['latency_ms'] ?? null;
+    $sionaConf    = $sionaHealth['configured'] ?? false;
+    $sionaBadge   = match($sionaStatus) {
+        'ok'           => 'active',
+        'degraded'     => 'pending',
+        'error'        => 'error',
+        default        => 'unconfigured',
+    };
+@endphp
+<div class="card" style="margin-bottom:1.5rem;border-left:3px solid var(--{{ $sionaOk ? 'accent' : ($sionaStatus === 'unconfigured' ? 'border' : 'warning') }})">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.5rem">
+        <div style="font-weight:600;color:var(--text-h)">◆ SIONA Connector</div>
+        <span class="badge badge-{{ $sionaBadge }}">{{ $sionaStatus }}</span>
+    </div>
+    <div class="text-sm text-dim" style="margin-bottom:.4rem">{{ $sionaMsg }}</div>
+    @if($sionaLatency !== null)
+    <div class="text-sm text-dim">Probe latency: {{ $sionaLatency }}ms</div>
+    @endif
+    @if(! $sionaConf)
+    <div class="text-sm" style="color:var(--warning);margin-top:.4rem">
+        Set <code>SIONA_ENABLED=true</code>, <code>SIONA_API_URL</code>, and <code>SIONA_API_TOKEN</code> to enable live health probing.
+        Supported auth modes: <code>standalone</code>, <code>signed_launch</code>, <code>backchannel_launch</code>.
+    </div>
+    @endif
+    <div class="text-sm text-dim" style="margin-top:.5rem">
+        Health endpoint:
+        <a href="{{ url('/api/connectors/siona/health') }}" style="color:var(--accent);text-decoration:none" target="_blank">
+            /api/connectors/siona/health
+        </a>
+    </div>
+</div>
+@endif
+
 {{-- Connector modules (system-level registry) --}}
 <div class="section-title" style="margin-bottom:.75rem">Connector Registry</div>
 <div class="card" style="padding:0;margin-bottom:1.5rem">
@@ -41,7 +80,11 @@
                 </td>
                 <td>
                     @php
-                        $authMode = $key === 'glassbilling' ? 'api_token' : 'standalone';
+                        $authMode = match($key) {
+                            'glassbilling' => 'api_token',
+                            'siona'        => 'standalone / signed_launch / backchannel_launch',
+                            default        => 'standalone',
+                        };
                     @endphp
                     <code class="text-sm">{{ $authMode }}</code>
                 </td>
@@ -70,6 +113,7 @@
             <tr>
                 <th>Module Key</th>
                 <th>Display Name</th>
+                <th>Supported Auth Modes</th>
                 <th>Linked Orgs</th>
                 <th>Active Links</th>
                 <th>Description</th>
@@ -80,6 +124,15 @@
             <tr>
                 <td><code style="color:var(--accent)">{{ $key }}</code></td>
                 <td style="color:var(--text-h);font-weight:500">{{ $meta['display_name'] }}</td>
+                <td class="text-sm text-dim">
+                    @if(!empty($meta['supported_auth_modes']))
+                        @foreach($meta['supported_auth_modes'] as $mode)
+                            <code style="font-size:.7rem">{{ $mode }}</code>{{ !$loop->last ? ',' : '' }}
+                        @endforeach
+                    @else
+                        <span class="text-dim">—</span>
+                    @endif
+                </td>
                 <td>
                     {{ $linkCounts[$key]['total'] ?? 0 }}
                     @if(($linkCounts[$key]['total'] ?? 0) > 0)
@@ -96,7 +149,7 @@
                 <td class="text-sm text-dim">{{ $meta['description'] ?? '—' }}</td>
             </tr>
             @empty
-            <tr><td colspan="5" class="text-dim" style="text-align:center;padding:2rem">No launch modules configured.</td></tr>
+            <tr><td colspan="6" class="text-dim" style="text-align:center;padding:2rem">No launch modules configured.</td></tr>
             @endforelse
         </tbody>
     </table>
