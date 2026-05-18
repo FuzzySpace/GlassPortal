@@ -102,6 +102,18 @@ return [
             'notes'           => 'Legacy game panel. Migration target -> GlassPanel.',
         ],
 
+        'siona' => [
+            'enabled'         => (bool) env('SIONA_ENABLED', false),
+            'display_name'    => 'SIONA',
+            'full_name'       => 'Sales Intelligence & Outreach Navigation Assistant',
+            'category'        => 'ai_sales',
+            'base_url'        => env('SIONA_API_URL', ''),
+            'token'           => env('SIONA_API_TOKEN', ''),
+            'timeout'         => (int) env('SIONA_TIMEOUT', 5),
+            'health_endpoint' => '/api/health',
+            'notes'           => 'AI-assisted ICP validation, prospect intelligence, outreach workflow, and sales pipeline generation. Configure SIONA_API_URL and SIONA_API_TOKEN to enable live health probing.',
+        ],
+
         // Phase 6: logical module keys surfaced to customers
         // These map to underlying connectors above or standalone services.
 
@@ -197,6 +209,12 @@ return [
             'display_name' => 'Infrastructure',
             'description'  => 'VPS, VM, and container management.',
             'icon'         => '⊞',
+        ],
+
+        'siona' => [
+            'display_name' => 'SIONA',
+            'description'  => 'AI-assisted ICP validation, prospect intelligence, outreach workflow, and sales pipeline generation.',
+            'icon'         => '◈',
         ],
 
     ],

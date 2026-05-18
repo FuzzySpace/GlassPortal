@@ -541,6 +541,45 @@ class GlassPortalHealthCheck extends Command
             $this->warnCheck('sso.legacy_secret_fallback', 'Could not check legacy secret fallback: ' . $e->getMessage());
         }
 
+        // 7j. SIONA connector checks (Phase 18)
+
+        // 7j-i. SIONA config present and consistent
+        try {
+            $sionaEnabled  = (bool) config('siona.enabled', false);
+            $sionaUrl      = (string) config('siona.api_url', '');
+            $sionaInReg    = config('glasshouse.modules.siona') !== null;
+            $sionaInLaunch = config('glasshouse.launch_modules.siona') !== null;
+
+            if (! $sionaInReg || ! $sionaInLaunch) {
+                $this->warnCheck('siona.module_registry', 'SIONA is missing from glasshouse.modules or glasshouse.launch_modules — check config/glasshouse.php');
+            } else {
+                $this->pass('siona.module_registry', 'SIONA present in connector registry and customer launch registry');
+            }
+
+            if (! $sionaEnabled) {
+                $this->warnCheck('siona.config', 'SIONA connector not enabled (set SIONA_ENABLED=true and configure credentials to activate)');
+            } elseif ($sionaUrl === '') {
+                $this->warnCheck('siona.config', 'SIONA enabled but SIONA_API_URL is not set — health probing disabled');
+            } else {
+                $this->pass('siona.config', "SIONA connector enabled, API URL configured: {$sionaUrl}");
+            }
+        } catch (\Throwable $e) {
+            $this->warnCheck('siona.config', 'Could not check SIONA config: ' . $e->getMessage());
+        }
+
+        // 7j-ii. SIONA connector health route registered
+        try {
+            $routes     = app('router')->getRoutes();
+            $sionaRoute = $routes->getByName('api.connectors.siona.health');
+            if ($sionaRoute !== null) {
+                $this->pass('siona.connector_route', 'api.connectors.siona.health route registered at /api/connectors/siona/health');
+            } else {
+                $this->warnCheck('siona.connector_route', 'api.connectors.siona.health route not found — check routes/api.php');
+            }
+        } catch (\Throwable $e) {
+            $this->warnCheck('siona.connector_route', 'Could not check SIONA connector route: ' . $e->getMessage());
+        }
+
         // 8. GlassBilling connector
         try {
             $health = $billing->health();
