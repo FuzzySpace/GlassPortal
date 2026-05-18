@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\BackChannelRedeemController;
 use App\Services\GlassBilling\GlassBillingClient;
 use Illuminate\Support\Facades\Route;
 
@@ -27,6 +28,21 @@ Route::get('/glassbilling/health', function (GlassBillingClient $client) {
         ...$health,
     ], $health['status'] === 'online' ? 200 : 503);
 });
+
+/*
+|--------------------------------------------------------------------------
+| Back-Channel SSO Redemption — Phase 11
+|--------------------------------------------------------------------------
+|
+| Server-to-server endpoint for modules to redeem one-time launch codes.
+| The module receives a launch_code via POST form from the browser and
+| exchanges it here for identity data. Rate-limited to 30 req/min per IP.
+|
+*/
+
+Route::post('/sso/backchannel/redeem/{moduleKey}', [BackChannelRedeemController::class, 'redeem'])
+    ->middleware(['throttle:30,1', 'backchannel.mtls'])
+    ->name('api.sso.backchannel.redeem');
 
 /*
 |--------------------------------------------------------------------------

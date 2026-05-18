@@ -32,12 +32,13 @@ class OrganizationModuleLink extends Model
         'api_token',
         'shared_session',
         'signed_launch',
+        'backchannel_launch',
         'oauth',
     ];
 
     public const SAFE_LAUNCH_MODES = ['local', 'standalone', 'api_token'];
 
-    public const FUTURE_SSO_MODES = ['shared_session', 'signed_launch', 'oauth'];
+    public const FUTURE_SSO_MODES = ['shared_session', 'signed_launch', 'backchannel_launch', 'oauth'];
 
     public const STATUSES = ['active', 'inactive', 'pending', 'error'];
 
@@ -108,6 +109,11 @@ class OrganizationModuleLink extends Model
     public function isSignedLaunchMode(): bool
     {
         return $this->auth_mode === 'signed_launch';
+    }
+
+    public function isBackChannelLaunchMode(): bool
+    {
+        return $this->auth_mode === 'backchannel_launch';
     }
 
     public function isSafeLaunchMode(): bool
