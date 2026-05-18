@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\BackChannelRedeemController;
+use App\Http\Controllers\Api\Connectors\SionaHealthController;
 use App\Services\GlassBilling\GlassBillingClient;
 use Illuminate\Support\Facades\Route;
 
@@ -43,6 +44,20 @@ Route::get('/glassbilling/health', function (GlassBillingClient $client) {
 Route::post('/sso/backchannel/redeem/{moduleKey}', [BackChannelRedeemController::class, 'redeem'])
     ->middleware(['throttle:30,1', 'backchannel.mtls'])
     ->name('api.sso.backchannel.redeem');
+
+/*
+|--------------------------------------------------------------------------
+| SIONA connector health — Phase 18
+|--------------------------------------------------------------------------
+|
+| Returns safe health metadata for the SIONA AI sales module connector.
+| Always HTTP 200 — use the "status" field to detect health state.
+| SIONA_API_TOKEN is never exposed in the response.
+|
+*/
+
+Route::get('/connectors/siona/health', [SionaHealthController::class, 'index'])
+    ->name('api.connectors.siona.health');
 
 /*
 |--------------------------------------------------------------------------
