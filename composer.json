@@ -5,8 +5,16 @@
     "description": "GlassPortal — unified customer/staff portal for the Glasshouse ecosystem.",
     "keywords": ["glassportal", "glasshouse", "fuzzyspace", "laravel", "portal"],
     "license": "MIT",
+    "repositories": [
+        {
+            "type": "path",
+            "url": "packages/glasshouse/portal-auth",
+            "options": { "symlink": true }
+        }
+    ],
     "require": {
         "php": "^8.3",
+        "glasshouse/portal-auth": "^1.0",
         "laravel/framework": "^11.31",
         "laravel/tinker": "^2.9"
     },

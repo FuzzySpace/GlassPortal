@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "ef171da9d1a9c50b270a0ff9d5a7d507",
+    "content-hash": "c0639089a2092974c667373ef36fe9f5",
     "packages": [
         {
             "name": "brick/math",
@@ -578,6 +578,53 @@
                 }
             ],
             "time": "2025-12-03T09:33:47+00:00"
+        },
+        {
+            "name": "glasshouse/portal-auth",
+            "version": "1.0.0",
+            "dist": {
+                "type": "path",
+                "url": "packages/glasshouse/portal-auth",
+                "reference": "03f1b4d5e77ec1f9925cacd50c0251f49ce60a81"
+            },
+            "require": {
+                "php": "^8.3"
+            },
+            "require-dev": {
+                "phpunit/phpunit": "^11.0"
+            },
+            "suggest": {
+                "illuminate/cache": "Required for LaravelCacheReplayStore",
+                "illuminate/contracts": "Required for Laravel middleware integration",
+                "illuminate/http": "Required for Laravel middleware integration",
+                "illuminate/support": "Required for PortalAuthServiceProvider"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "GlassHouse\\PortalAuth\\": "src/"
+                }
+            },
+            "autoload-dev": {
+                "psr-4": {
+                    "GlassHouse\\PortalAuth\\Tests\\": "tests/"
+                }
+            },
+            "license": [
+                "MIT"
+            ],
+            "description": "GlassPortal module authentication SDK — signed launch and back-channel SSO verification.",
+            "keywords": [
+                "glasshouse",
+                "glassportal",
+                "portal-auth",
+                "signed-launch",
+                "sso"
+            ],
+            "transport-options": {
+                "symlink": true,
+                "relative": true
+            }
         },
         {
             "name": "graham-campbell/result-type",
@@ -8309,15 +8356,15 @@
     ],
     "aliases": [],
     "minimum-stability": "stable",
-    "stability-flags": [],
+    "stability-flags": {},
     "prefer-stable": true,
     "prefer-lowest": false,
     "platform": {
         "php": "^8.3"
     },
-    "platform-dev": [],
+    "platform-dev": {},
     "platform-overrides": {
         "php": "8.3.31"
     },
-    "plugin-api-version": "2.3.0"
+    "plugin-api-version": "2.6.0"
 }

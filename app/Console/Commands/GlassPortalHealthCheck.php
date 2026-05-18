@@ -390,6 +390,37 @@ class GlassPortalHealthCheck extends Command
             $this->warnCheck('rate_limits.module_launch', 'Could not check launch rate limit config: ' . $e->getMessage());
         }
 
+        // 7h. Portal-auth SDK autoload check (Phase 13)
+        try {
+            $coreClasses = [
+                \GlassHouse\PortalAuth\Sso\SignedLaunchVerifier::class,
+                \GlassHouse\PortalAuth\Sso\ModuleSecretResolver::class,
+                \GlassHouse\PortalAuth\Sso\SignedLaunchTokenParser::class,
+                \GlassHouse\PortalAuth\Replay\ArrayReplayStore::class,
+                \GlassHouse\PortalAuth\Replay\LaravelCacheReplayStore::class,
+                \GlassHouse\PortalAuth\Contracts\SecretResolverInterface::class,
+                \GlassHouse\PortalAuth\Contracts\ReplayStoreInterface::class,
+                \GlassHouse\PortalAuth\DTO\SignedLaunchVerificationResult::class,
+                \GlassHouse\PortalAuth\DTO\VerifiedLaunchContext::class,
+                \GlassHouse\PortalAuth\DTO\BackChannelRedeemResult::class,
+                \GlassHouse\PortalAuth\Laravel\PortalAuthServiceProvider::class,
+            ];
+            $missing = [];
+            foreach ($coreClasses as $class) {
+                if (! class_exists($class) && ! interface_exists($class)) {
+                    $missing[] = $class;
+                }
+            }
+            if (empty($missing)) {
+                $this->pass('sso.portal_auth_sdk', 'glasshouse/portal-auth SDK classes are autoloadable (' . count($coreClasses) . ' checked)');
+            } else {
+                $this->checkFail('sso.portal_auth_sdk', 'SDK classes not autoloadable: ' . implode(', ', $missing) . ' — run: composer dump-autoload');
+                $allPassed = false;
+            }
+        } catch (\Throwable $e) {
+            $this->warnCheck('sso.portal_auth_sdk', 'Could not check portal-auth SDK: ' . $e->getMessage());
+        }
+
         // 8. GlassBilling connector
         try {
             $health = $billing->health();
