@@ -2,22 +2,14 @@
     "$schema": "https://getcomposer.org/schema.json",
     "name": "fuzzyspace/glassportal",
     "type": "project",
-    "description": "GlassPortal \u2014 unified customer/staff portal for the Glasshouse ecosystem.",
-    "keywords": [
-        "glassportal",
-        "glasshouse",
-        "fuzzyspace",
-        "laravel",
-        "portal"
-    ],
+    "description": "GlassPortal — unified customer/staff portal for the Glasshouse ecosystem.",
+    "keywords": ["glassportal", "glasshouse", "fuzzyspace", "laravel", "portal"],
     "license": "MIT",
     "repositories": [
         {
             "type": "path",
             "url": "packages/glasshouse/portal-auth",
-            "options": {
-                "symlink": true
-            }
+            "options": { "symlink": true }
         }
     ],
     "require": {
