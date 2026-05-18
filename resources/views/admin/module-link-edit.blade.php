@@ -13,6 +13,9 @@
     Module links store routing metadata only. <strong>Do not enter API tokens, passwords, or private keys here.</strong>
     For <code>signed_launch</code>: set <em>Launch URL</em> to the module's handoff endpoint.
     The signing secret is configured server-side via <code>GLASSPORTAL_SIGNED_LAUNCH_SECRET</code>.
+    For <code>backchannel_launch</code>: set <em>Launch URL</em> to the module's redirect endpoint and ensure
+    <code>GLASSPORTAL_BACKCHANNEL_SSO_ENABLED=true</code> is set. The module redeems codes at
+    <code>POST /api/sso/backchannel/redeem/{moduleKey}</code>.
 </div>
 
 @if($link->auth_mode === 'signed_launch' && empty(config('glasshouse_sso.signing_secret')))

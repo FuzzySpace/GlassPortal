@@ -16,6 +16,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'role'                 => \App\Http\Middleware\EnsureUserHasRole::class,
             'signed.launch'        => \App\Http\Middleware\VerifySignedModuleLaunch::class,
             'verify.signed.launch' => \App\Http\Middleware\VerifySignedModuleLaunch::class,
+            'backchannel.mtls'     => \App\Http\Middleware\VerifyBackChannelMtls::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {

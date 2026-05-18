@@ -31,16 +31,17 @@ use Illuminate\Support\Facades\Cache;
  */
 class SignedLaunchTokenService
 {
-    private string $secret;
-    private string $issuer;
-    private int    $ttl;
-    private int    $maxTtl;
-    private int    $clockSkew;
-    private int    $cacheTtl;
-    private string $keyId;
-    private array  $keys;
+    private string              $secret;
+    private string              $issuer;
+    private int                 $ttl;
+    private int                 $maxTtl;
+    private int                 $clockSkew;
+    private int                 $cacheTtl;
+    private string              $keyId;
+    private array               $keys;
+    private ModuleSecretResolver $resolver;
 
-    public function __construct()
+    public function __construct(?ModuleSecretResolver $resolver = null)
     {
         $cfg             = config('glasshouse_sso', []);
         $this->secret    = (string) ($cfg['signing_secret'] ?? '');
@@ -51,6 +52,7 @@ class SignedLaunchTokenService
         $this->cacheTtl  = (int)    ($cfg['nonce_cache_ttl_seconds'] ?? 600);
         $this->keyId     = (string) ($cfg['key_id'] ?? '');
         $this->keys      = (array)  ($cfg['keys'] ?? []);
+        $this->resolver  = $resolver ?? new ModuleSecretResolver();
     }
 
     /**
@@ -68,7 +70,8 @@ class SignedLaunchTokenService
      */
     public function generate(OrganizationModuleLink $link, User $user, ?int $ttl = null): array
     {
-        if ($this->secret === '') {
+        $secret = $this->resolver->resolveForIssuance($link->module_key);
+        if ($secret === '') {
             throw new \RuntimeException(
                 'Signed launch secret is not configured. Set GLASSPORTAL_SIGNED_LAUNCH_SECRET.'
             );
@@ -97,7 +100,7 @@ class SignedLaunchTokenService
             'jti'   => $jti,
         ];
 
-        $token = $this->buildToken($claims);
+        $token = $this->buildToken($claims, $secret);
 
         // Track issued JTI in cache for replay detection.
         // Cache failure degrades gracefully — the token is still valid,
@@ -137,17 +140,13 @@ class SignedLaunchTokenService
 
         [$headerB64, $payloadB64, $sigB64] = $parts;
 
-        // Resolve signing secret: explicit override > kid key map > primary secret
+        // Resolve signing secret: explicit override > resolver (per-module → kid → global)
         if ($secret !== null && $secret !== '') {
             $resolvedSecret = $secret;
         } else {
             $headerData = json_decode($this->b64UrlDecode($headerB64), true) ?? [];
             $kid        = (string) ($headerData['kid'] ?? '');
-            if ($kid !== '' && isset($this->keys[$kid])) {
-                $resolvedSecret = (string) $this->keys[$kid];
-            } else {
-                $resolvedSecret = $this->secret;
-            }
+            $resolvedSecret = $this->resolver->resolveForVerification($expectedAudience, $kid);
         }
 
         // 1. Signature check
@@ -210,7 +209,7 @@ class SignedLaunchTokenService
     // Internal helpers
     // =========================================================================
 
-    private function buildToken(array $claims): string
+    private function buildToken(array $claims, string $secret): string
     {
         $headerData = ['alg' => 'HS256', 'typ' => 'SLP'];
         if ($this->keyId !== '') {
@@ -220,7 +219,7 @@ class SignedLaunchTokenService
         $payload = $this->b64UrlEncode(
             json_encode($claims, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR)
         );
-        $sig = $this->hmacB64("{$header}.{$payload}", $this->secret);
+        $sig = $this->hmacB64("{$header}.{$payload}", $secret);
         return "{$header}.{$payload}.{$sig}";
     }
 
