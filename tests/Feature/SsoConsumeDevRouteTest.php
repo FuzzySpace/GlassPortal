@@ -7,7 +7,9 @@ use App\Models\Organization;
 use App\Models\OrganizationModuleLink;
 use App\Models\User;
 use App\Services\Sso\SignedLaunchTokenService;
+use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Config;
 use Tests\TestCase;
 
 class SsoConsumeDevRouteTest extends TestCase
@@ -19,14 +21,15 @@ class SsoConsumeDevRouteTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        config(['glasshouse_sso.signing_secret'          => $this->secret]);
-        config(['glasshouse_sso.issuer'                  => 'glassportal-test']);
-        config(['glasshouse_sso.default_ttl_seconds'     => 60]);
-        config(['glasshouse_sso.max_ttl_seconds'         => 300]);
-        config(['glasshouse_sso.clock_skew_seconds'      => 30]);
-        config(['glasshouse_sso.nonce_cache_ttl_seconds' => 600]);
-        config(['glasshouse_sso.key_id'                  => '']);
-        config(['glasshouse_sso.keys'                    => []]);
+
+        Config::set('glasshouse_sso.signing_secret', $this->secret);
+        Config::set('glasshouse_sso.signed_launch.secret', $this->secret);
+        config(['glasshouse_sso.signing_secret' => $this->secret]);
+        config(['glasshouse_sso.signed_launch.secret' => $this->secret]);
+
+        app()->forgetInstance(SignedLaunchTokenService::class);
+
+        $this->withoutMiddleware(ValidateCsrfToken::class);
     }
 
     // -------------------------------------------------------------------------
