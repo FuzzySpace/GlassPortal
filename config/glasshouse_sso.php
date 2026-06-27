@@ -183,6 +183,12 @@ return [
         // Add entries for each module that should use its own signing secret.
         // 'glasspanel' => env('GLASSPORTAL_MODULE_SECRET_GLASSPANEL', ''),
         // 'aria'       => env('GLASSPORTAL_MODULE_SECRET_ARIA', ''),
+
+        // Phase 21A: SIONA is wired as a first-class per-module secret. When
+        // GLASSPORTAL_MODULE_SECRET_SIONA is non-empty it overrides the global
+        // signing_secret for SIONA signed_launch issuance + verification; when
+        // empty, ModuleSecretResolver falls back (active key_registry → global).
+        'siona' => env('GLASSPORTAL_MODULE_SECRET_SIONA', ''),
     ],
 
     /*

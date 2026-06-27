@@ -695,6 +695,39 @@ class GlassPortalHealthCheck extends Command
             $this->warnCheck('siona.backchannel_ready', 'Could not check SIONA back-channel readiness: ' . $e->getMessage());
         }
 
+        // 7m. SIONA Phase 21A — per-module signing secret
+        // Reports presence/absence and fallback mode only — never the secret value.
+        try {
+            $resolver     = app(\App\Services\Sso\ModuleSecretResolver::class);
+            $hasDedicated = $resolver->hasPerModuleSecret('siona');
+            $hasFallback  = $resolver->activeKeyInfo() !== null
+                || (string) config('glasshouse_sso.signing_secret', '') !== '';
+
+            // Are there active SIONA links that actually depend on a signing secret?
+            $sionaSsoActive = false;
+            try {
+                $sionaSsoActive = \App\Models\OrganizationModuleLink::where('module_key', 'siona')
+                    ->whereIn('auth_mode', ['signed_launch', 'backchannel_launch'])
+                    ->where('status', 'active')
+                    ->exists();
+            } catch (\Throwable) {
+                // DB not ready — treat as no active links
+            }
+
+            if ($hasDedicated) {
+                $this->pass('siona.per_module_secret', 'SIONA uses a dedicated per-module signing secret (GLASSPORTAL_MODULE_SECRET_SIONA set)');
+            } elseif (! $sionaSsoActive) {
+                $this->warnCheck('siona.per_module_secret', 'No active SIONA signed_launch/backchannel links — dedicated GLASSPORTAL_MODULE_SECRET_SIONA not yet required (global fallback in effect)');
+            } elseif ($hasFallback) {
+                $this->warnCheck('siona.per_module_secret', 'SIONA signed_launch/backchannel is active but using the GLOBAL fallback secret — set GLASSPORTAL_MODULE_SECRET_SIONA for per-module isolation');
+            } else {
+                $this->checkFail('siona.per_module_secret', 'SIONA signed_launch/backchannel is active but NO signing secret is configured — set GLASSPORTAL_MODULE_SECRET_SIONA or GLASSPORTAL_SIGNED_LAUNCH_SECRET; launches will fail');
+                $allPassed = false;
+            }
+        } catch (\Throwable $e) {
+            $this->warnCheck('siona.per_module_secret', 'Could not check SIONA per-module signing secret: ' . $e->getMessage());
+        }
+
         // 8. GlassBilling connector
         try {
             $health = $billing->health();

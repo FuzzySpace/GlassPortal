@@ -44,6 +44,16 @@
         Supported auth modes: <code>standalone</code>, <code>signed_launch</code>, <code>backchannel_launch</code>.
     </div>
     @endif
+    @isset($sionaSigning)
+    {{-- Phase 21A: signed launch secret status — label only, never the secret value --}}
+    <div class="text-sm text-dim" style="margin-top:.5rem">
+        Signed launch secret:
+        <span class="badge badge-{{ $sionaSigning['state'] === 'dedicated' ? 'active' : ($sionaSigning['state'] === 'fallback' ? 'pending' : 'error') }}">{{ $sionaSigning['label'] }}</span>
+        @if($sionaSigning['state'] !== 'dedicated')
+            <span class="text-dim">— set <code>GLASSPORTAL_MODULE_SECRET_SIONA</code> for per-module isolation</span>
+        @endif
+    </div>
+    @endisset
     <div class="text-sm text-dim" style="margin-top:.5rem">
         Health endpoint:
         <a href="{{ url('/api/connectors/siona/health') }}" style="color:var(--accent);text-decoration:none" target="_blank">
