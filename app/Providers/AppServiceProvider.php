@@ -2,6 +2,7 @@
 
 namespace App\Providers;
 
+use App\Services\Billing\StripeBillingClient;
 use App\Services\Siona\SionaConnectorClient;
 use App\Services\Siona\SionaTenantProvisioningService;
 use App\Services\Sso\SigningKeyResolver;
@@ -17,6 +18,7 @@ class AppServiceProvider extends ServiceProvider
             SionaTenantProvisioningService::class,
             fn ($app) => new SionaTenantProvisioningService($app->make(SionaConnectorClient::class)),
         );
+        $this->app->singleton(StripeBillingClient::class, fn () => new StripeBillingClient());
     }
 
     public function boot(): void
