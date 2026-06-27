@@ -206,6 +206,9 @@
             @if(session('success'))
                 <div class="alert alert-info" style="margin-bottom:1rem">{{ session('success') }}</div>
             @endif
+            @if(session('error'))
+                <div class="alert alert-warning" style="margin-bottom:1rem">{{ session('error') }}</div>
+            @endif
             @yield('content')
         </div>
     </div>

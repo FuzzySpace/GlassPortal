@@ -94,4 +94,31 @@ return [
     */
     'verify_tls' => filter_var(env('SIONA_VERIFY_TLS', true), FILTER_VALIDATE_BOOLEAN),
 
+    /*
+    |--------------------------------------------------------------------------
+    | Tenant Provisioning (Phase 20)
+    |--------------------------------------------------------------------------
+    |
+    | GlassPortal can provision a SIONA workspace/tenant for an organization
+    | over the authenticated server-to-server back-channel (using api_url +
+    | api_token). This is an admin-only, opt-in action.
+    |
+    |   enabled           — master switch for the provisioning feature. When
+    |                       false, the admin action returns "unconfigured" and
+    |                       no outbound call is made.
+    |   path              — relative path POSTed to for tenant creation:
+    |                       {api_url}{path}
+    |   default_auth_mode — auth_mode assigned to the organization_module_link
+    |                       created on successful provisioning.
+    |
+    | No secrets live here — api_token is read from the SIONA_API_TOKEN env
+    | only (see 'api_token' above) and is NEVER logged or returned.
+    |
+    */
+    'provisioning' => [
+        'enabled'           => filter_var(env('SIONA_PROVISIONING_ENABLED', false), FILTER_VALIDATE_BOOLEAN),
+        'path'              => env('SIONA_PROVISIONING_PATH', '/api/tenants'),
+        'default_auth_mode' => env('SIONA_PROVISIONING_AUTH_MODE', 'signed_launch'),
+    ],
+
 ];

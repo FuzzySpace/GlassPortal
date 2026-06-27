@@ -256,4 +256,147 @@ class SionaConnectorClientTest extends TestCase
 
         $this->assertSame('ok', $result['status']);
     }
+
+    // =========================================================================
+    // Phase 20 — back-channel / provisioning config helpers
+    // =========================================================================
+
+    public function test_back_channel_ready_requires_url_and_token(): void
+    {
+        config(['siona.enabled' => true, 'siona.api_url' => 'http://siona.test', 'siona.api_token' => '']);
+        $this->assertFalse($this->client()->isBackChannelReady());
+
+        config(['siona.api_token' => 'tok']);
+        $this->assertTrue($this->client()->isBackChannelReady());
+
+        config(['siona.enabled' => false]);
+        $this->assertFalse($this->client()->isBackChannelReady());
+    }
+
+    public function test_is_provisioning_configured_requires_feature_flag(): void
+    {
+        config([
+            'siona.enabled'              => true,
+            'siona.api_url'              => 'http://siona.test',
+            'siona.api_token'            => 'tok',
+            'siona.provisioning.enabled' => false,
+        ]);
+        $this->assertFalse($this->client()->isProvisioningConfigured());
+
+        config(['siona.provisioning.enabled' => true]);
+        $this->assertTrue($this->client()->isProvisioningConfigured());
+    }
+
+    // =========================================================================
+    // Phase 20 — provisionTenant
+    // =========================================================================
+
+    public function test_provision_tenant_unconfigured_without_token(): void
+    {
+        config(['siona.enabled' => true, 'siona.api_url' => 'http://siona.test', 'siona.api_token' => '']);
+
+        $result = $this->client()->provisionTenant(['source' => 'glassportal']);
+
+        $this->assertFalse($result['ok']);
+        $this->assertSame('unconfigured', $result['status']);
+        $this->assertNull($result['workspace_id']);
+        Http::assertNothingSent();
+    }
+
+    public function test_provision_tenant_returns_workspace_id_on_success(): void
+    {
+        Http::fake(['siona.test/api/tenants' => Http::response(['workspace_id' => 'ws-123'], 201)]);
+        config([
+            'siona.enabled'           => true,
+            'siona.api_url'           => 'http://siona.test',
+            'siona.api_token'         => 'tok',
+            'siona.provisioning.path' => '/api/tenants',
+        ]);
+
+        $result = $this->client()->provisionTenant(['source' => 'glassportal']);
+
+        $this->assertTrue($result['ok']);
+        $this->assertSame('ok', $result['status']);
+        $this->assertSame('ws-123', $result['workspace_id']);
+        $this->assertSame(201, $result['http_status']);
+    }
+
+    public function test_provision_tenant_extracts_nested_id(): void
+    {
+        Http::fake(['siona.test/api/tenants' => Http::response(['data' => ['id' => 'ws-nested']], 200)]);
+        config([
+            'siona.enabled'   => true,
+            'siona.api_url'   => 'http://siona.test',
+            'siona.api_token' => 'tok',
+        ]);
+
+        $result = $this->client()->provisionTenant([]);
+
+        $this->assertTrue($result['ok']);
+        $this->assertSame('ws-nested', $result['workspace_id']);
+    }
+
+    public function test_provision_tenant_errors_when_no_workspace_id_returned(): void
+    {
+        Http::fake(['siona.test/api/tenants' => Http::response(['ok' => true], 200)]);
+        config([
+            'siona.enabled'   => true,
+            'siona.api_url'   => 'http://siona.test',
+            'siona.api_token' => 'tok',
+        ]);
+
+        $result = $this->client()->provisionTenant([]);
+
+        $this->assertFalse($result['ok']);
+        $this->assertSame('error', $result['status']);
+        $this->assertNull($result['workspace_id']);
+    }
+
+    public function test_provision_tenant_degraded_on_non_2xx(): void
+    {
+        Http::fake(['siona.test/api/tenants' => Http::response(['error' => 'nope'], 422)]);
+        config([
+            'siona.enabled'   => true,
+            'siona.api_url'   => 'http://siona.test',
+            'siona.api_token' => 'tok',
+        ]);
+
+        $result = $this->client()->provisionTenant([]);
+
+        $this->assertFalse($result['ok']);
+        $this->assertSame('degraded', $result['status']);
+        $this->assertSame(422, $result['http_status']);
+    }
+
+    public function test_provision_tenant_never_throws(): void
+    {
+        Http::fake(function () {
+            throw new \RuntimeException('boom');
+        });
+        config([
+            'siona.enabled'   => true,
+            'siona.api_url'   => 'http://siona.test',
+            'siona.api_token' => 'tok',
+        ]);
+
+        $result = $this->client()->provisionTenant([]);
+
+        $this->assertSame('error', $result['status']);
+        $this->assertFalse($result['ok']);
+    }
+
+    public function test_provision_tenant_never_leaks_token(): void
+    {
+        $secret = 'provision-tenant-token-must-not-leak';
+        Http::fake(['siona.test/api/tenants' => Http::response(['workspace_id' => 'ws-9'], 201)]);
+        config([
+            'siona.enabled'   => true,
+            'siona.api_url'   => 'http://siona.test',
+            'siona.api_token' => $secret,
+        ]);
+
+        $result = $this->client()->provisionTenant(['source' => 'glassportal']);
+
+        $this->assertStringNotContainsString($secret, (string) json_encode($result));
+    }
 }

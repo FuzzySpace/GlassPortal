@@ -58,6 +58,61 @@
     </div>
 </div>
 
+{{-- SIONA workspace (Phase 20) --}}
+<div class="card" style="margin-bottom:1.5rem">
+    <div class="section-title" style="margin-bottom:.75rem">SIONA Workspace</div>
+    <table style="width:100%">
+        <tr>
+            <td class="text-dim text-sm" style="padding:.3rem 0;width:40%">Workspace</td>
+            <td class="text-sm">
+                @if($org->siona_workspace_id)
+                    <span class="badge badge-active">provisioned</span>
+                    <span class="text-dim" style="margin-left:.5rem;font-variant-numeric:tabular-nums">{{ $org->siona_workspace_id }}</span>
+                @else
+                    <span class="badge badge-inactive">not provisioned</span>
+                @endif
+            </td>
+        </tr>
+        <tr>
+            <td class="text-dim text-sm" style="padding:.3rem 0">Module link</td>
+            <td class="text-sm">
+                @if($sionaLink)
+                    <span class="badge badge-{{ $sionaLink->status === 'active' ? 'active' : 'inactive' }}">{{ $sionaLink->status }}</span>
+                    <span class="text-dim" style="margin-left:.5rem">{{ $sionaLink->auth_mode }}</span>
+                @else
+                    <span class="text-dim">— no SIONA module link</span>
+                @endif
+            </td>
+        </tr>
+    </table>
+
+    @if(request()->user()?->isAdmin())
+        <div class="section-title" style="margin-top:1.25rem;margin-bottom:.5rem">Provisioning</div>
+        @if(!$sionaProvisioningConfigured)
+            <p class="text-sm text-dim">
+                SIONA tenant provisioning is not configured. Set <code>SIONA_ENABLED</code>,
+                <code>SIONA_PROVISIONING_ENABLED</code>, <code>SIONA_API_URL</code>, and
+                <code>SIONA_API_TOKEN</code> to enable.
+            </p>
+        @else
+            <form method="POST" action="{{ route('admin.customers.siona.provision', $org) }}" style="margin:0">
+                @csrf
+                <button type="submit"
+                        style="padding:.5rem 1.25rem;background:var(--accent-d);color:#fff;border:none;border-radius:.375rem;font-size:.875rem;font-weight:500;cursor:pointer">
+                    @if($org->siona_workspace_id && $sionaLink && $sionaLink->status === 'active')
+                        Re-sync SIONA link
+                    @else
+                        Provision SIONA workspace
+                    @endif
+                </button>
+            </form>
+            <p class="text-sm text-dim" style="margin-top:.5rem">
+                Creates the SIONA workspace (if needed) and an active <code>siona</code> module link. Idempotent and audited.
+            </p>
+        @endif
+    @endif
+</div>
+
 {{-- Portal users --}}
 <div class="section-title">Portal Users</div>
 <div class="card" style="padding:0;margin-bottom:1.5rem">

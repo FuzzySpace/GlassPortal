@@ -17,6 +17,7 @@ class Organization extends Model
         'billing_email',
         'status',
         'glassbilling_customer_id',
+        'siona_workspace_id',
         'metadata',
     ];
 
@@ -40,5 +41,25 @@ class Organization extends Model
     public function isActive(): bool
     {
         return $this->status === 'active';
+    }
+
+    /**
+     * True when this organization has been provisioned a SIONA workspace.
+     */
+    public function hasSionaWorkspace(): bool
+    {
+        return $this->siona_workspace_id !== null && $this->siona_workspace_id !== '';
+    }
+
+    /**
+     * The active SIONA module link for this organization, if one exists.
+     * Used by the provisioning service to enforce idempotency.
+     */
+    public function sionaModuleLink(): ?OrganizationModuleLink
+    {
+        return $this->moduleLinks()
+            ->where('module_key', 'siona')
+            ->orderByDesc('id')
+            ->first();
     }
 }

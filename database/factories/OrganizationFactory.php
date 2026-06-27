@@ -29,6 +29,11 @@ class OrganizationFactory extends Factory
         return $this->state(['glassbilling_customer_id' => $id]);
     }
 
+    public function withSionaWorkspace(string $id = 'ws-test123'): static
+    {
+        return $this->state(['siona_workspace_id' => $id]);
+    }
+
     public function suspended(): static
     {
         return $this->state(['status' => 'suspended']);
