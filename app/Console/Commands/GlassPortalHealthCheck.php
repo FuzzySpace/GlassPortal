@@ -728,6 +728,49 @@ class GlassPortalHealthCheck extends Command
             $this->warnCheck('siona.per_module_secret', 'Could not check SIONA per-module signing secret: ' . $e->getMessage());
         }
 
+        // 7n. GlassSite (Phase 22) — public product catalog
+
+        // 7n-i. Catalog table present
+        try {
+            if (Schema::hasTable('public_product_catalog_entries')) {
+                $this->pass('glasssite.catalog_table', 'public_product_catalog_entries table present');
+            } else {
+                $this->checkFail('glasssite.catalog_table', 'public_product_catalog_entries table missing — run: php artisan migrate');
+                $allPassed = false;
+            }
+        } catch (\Throwable $e) {
+            $this->checkFail('glasssite.catalog_table', 'Could not check catalog table: ' . $e->getMessage());
+            $allPassed = false;
+        }
+
+        // 7n-ii. Public catalog routes registered
+        try {
+            $routes   = app('router')->getRoutes();
+            $indexRt  = $routes->getByName('public.products.index');
+            $showRt    = $routes->getByName('public.products.show');
+            if ($indexRt !== null && $showRt !== null) {
+                $this->pass('glasssite.public_routes', 'public catalog routes registered (/products, /products/{slug})');
+            } else {
+                $this->checkFail('glasssite.public_routes', 'public catalog routes missing — check routes/web.php');
+                $allPassed = false;
+            }
+        } catch (\Throwable $e) {
+            $this->warnCheck('glasssite.public_routes', 'Could not check public catalog routes: ' . $e->getMessage());
+        }
+
+        // 7n-iii. Admin catalog routes registered
+        try {
+            $adminRt = app('router')->getRoutes()->getByName('admin.site.catalog.index');
+            if ($adminRt !== null) {
+                $this->pass('glasssite.admin_routes', 'admin catalog routes registered (admin/site/catalog)');
+            } else {
+                $this->checkFail('glasssite.admin_routes', 'admin catalog routes missing — check routes/web.php');
+                $allPassed = false;
+            }
+        } catch (\Throwable $e) {
+            $this->warnCheck('glasssite.admin_routes', 'Could not check admin catalog routes: ' . $e->getMessage());
+        }
+
         // 8. GlassBilling connector
         try {
             $health = $billing->health();

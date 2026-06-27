@@ -7,10 +7,12 @@ use App\Http\Controllers\Admin\ModuleLinksController;
 use App\Http\Controllers\Admin\ModulesController;
 use App\Http\Controllers\Admin\ProvisioningController;
 use App\Http\Controllers\Admin\ServicesController;
+use App\Http\Controllers\Admin\Site\CatalogController;
 use App\Http\Controllers\Admin\SionaProvisioningController;
 use App\Http\Controllers\Api\JwksController;
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Dev\SsoConsumeController;
+use App\Http\Controllers\GlassSite\PublicCatalogController;
 use App\Http\Controllers\Portal\DashboardController as PortalDashboardController;
 use App\Http\Controllers\Portal\ModuleLaunchController;
 use App\Http\Controllers\Portal\ModulesController as PortalModulesController;
@@ -25,8 +27,23 @@ use Illuminate\Support\Facades\Route;
 */
 
 Route::get('/', function () {
-    return view('welcome');
+    return view('welcome', [
+        'featuredProducts' => \App\Models\PublicProductCatalogEntry::featuredForHomepage(),
+    ]);
 })->name('home');
+
+/*
+|--------------------------------------------------------------------------
+| GlassSite — public product catalog (Phase 22)
+|--------------------------------------------------------------------------
+|
+| Unauthenticated. Renders only intentionally-published catalog entries.
+| Never exposes secrets, customer data, tenant IDs, or infrastructure data.
+|
+*/
+
+Route::get('/products', [PublicCatalogController::class, 'index'])->name('public.products.index');
+Route::get('/products/{slug}', [PublicCatalogController::class, 'show'])->name('public.products.show');
 
 /*
 |--------------------------------------------------------------------------
@@ -94,6 +111,23 @@ Route::middleware(['auth', 'role:owner,admin,staff,support'])
 
         Route::get('/billing-approvals',         [BillingApprovalsController::class, 'index'])->name('billing-approvals');
         Route::get('/billing-approvals/{id}',    [BillingApprovalsController::class, 'show'])->name('billing-approvals.show');
+
+        // Phase 22: GlassSite public catalog management — owner/admin only.
+        // The stacked role middleware narrows the surrounding staff group to
+        // owner/admin (intersection), so staff/support get a 403.
+        Route::prefix('site/catalog')
+            ->name('site.catalog.')
+            ->middleware('role:owner,admin')
+            ->group(function () {
+                Route::get('/',                 [CatalogController::class, 'index'])->name('index');
+                Route::get('/create',           [CatalogController::class, 'create'])->name('create');
+                Route::post('/',                [CatalogController::class, 'store'])->name('store');
+                Route::get('/{entry}/edit',     [CatalogController::class, 'edit'])->name('edit');
+                Route::patch('/{entry}',        [CatalogController::class, 'update'])->name('update');
+                Route::post('/{entry}/publish', [CatalogController::class, 'togglePublish'])->name('publish');
+                Route::post('/{entry}/feature', [CatalogController::class, 'toggleFeatured'])->name('feature');
+                Route::delete('/{entry}',       [CatalogController::class, 'destroy'])->name('destroy');
+            });
     });
 
 /*

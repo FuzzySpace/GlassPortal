@@ -176,6 +176,11 @@
             <a href="{{ route('admin.module-links') }}" class="{{ str_starts_with($route, 'admin.module-links') ? 'active' : '' }}">
                 <span class="icon">⊞</span> Module Links
             </a>
+            @if(auth()->user()->isAdmin())
+            <a href="{{ route('admin.site.catalog.index') }}" class="{{ str_starts_with($route, 'admin.site.catalog') ? 'active' : '' }}">
+                <span class="icon">◆</span> Site Catalog
+            </a>
+            @endif
             <a href="#" class="{{ $route === 'admin.billing' ? 'active' : '' }}">
                 <span class="icon">◈</span> Billing <span class="sidebar-badge">Phase 7</span>
             </a>
