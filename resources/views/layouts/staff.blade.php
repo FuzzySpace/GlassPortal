@@ -181,9 +181,15 @@
                 <span class="icon">◆</span> Site Catalog
             </a>
             @endif
+            @if(auth()->user()->isAdmin())
+            <a href="{{ route('admin.billing.overview') }}" class="{{ str_starts_with($route, 'admin.billing') ? 'active' : '' }}">
+                <span class="icon">◈</span> Billing
+            </a>
+            @else
             <a href="#" class="{{ $route === 'admin.billing' ? 'active' : '' }}">
                 <span class="icon">◈</span> Billing <span class="sidebar-badge">Phase 7</span>
             </a>
+            @endif
             <a href="#" class="{{ $route === 'admin.support' ? 'active' : '' }}">
                 <span class="icon">◎</span> Support <span class="sidebar-badge">Phase 4</span>
             </a>

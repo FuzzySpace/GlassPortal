@@ -827,6 +827,80 @@ class GlassPortalHealthCheck extends Command
             $this->warnCheck('billing.source_of_truth_adr', 'Could not check billing source-of-truth ADR: ' . $e->getMessage());
         }
 
+        // 10. GlassBilling foundation (Phase 24)
+
+        // 10a. Billing foundation tables
+        try {
+            $required = [
+                'billing_customers', 'billing_products', 'billing_plans', 'billing_subscriptions',
+                'billing_invoices', 'billing_payments', 'billing_payment_methods', 'billing_events',
+            ];
+            $missing = array_values(array_filter($required, fn ($t) => ! Schema::hasTable($t)));
+            if (empty($missing)) {
+                $this->pass('billing.tables', count($required) . ' billing foundation tables present');
+            } else {
+                $this->checkFail('billing.tables', 'Missing billing tables: ' . implode(', ', $missing) . ' — run: php artisan migrate');
+                $allPassed = false;
+            }
+        } catch (\Throwable $e) {
+            $this->checkFail('billing.tables', 'Could not check billing tables: ' . $e->getMessage());
+            $allPassed = false;
+        }
+
+        // 10b. Billing models loadable
+        try {
+            $models = [
+                \App\Models\BillingCustomer::class, \App\Models\BillingProduct::class,
+                \App\Models\BillingPlan::class, \App\Models\BillingSubscription::class,
+                \App\Models\BillingInvoice::class, \App\Models\BillingPayment::class,
+                \App\Models\BillingPaymentMethod::class, \App\Models\BillingEvent::class,
+            ];
+            $missing = array_values(array_filter($models, fn ($m) => ! class_exists($m)));
+            if (empty($missing)) {
+                $this->pass('billing.models', count($models) . ' billing Eloquent models loadable');
+            } else {
+                $names = implode(', ', array_map(fn ($m) => class_basename($m), $missing));
+                $this->checkFail('billing.models', "Missing billing models: {$names}");
+                $allPassed = false;
+            }
+        } catch (\Throwable $e) {
+            $this->warnCheck('billing.models', 'Could not check billing models: ' . $e->getMessage());
+        }
+
+        // 10c. Stripe configuration — presence only, NEVER prints key values.
+        try {
+            $stripe = app(\App\Services\Billing\StripeBillingClient::class);
+            if (! $stripe->isEnabled()) {
+                $this->warnCheck('billing.stripe_config', 'Billing not enabled (set GLASSBILLING_ENABLED=true + GLASSBILLING_MODE=stripe to activate)');
+            } elseif ($stripe->isConfigured()) {
+                $this->pass('billing.stripe_config', "Stripe configured (mode={$stripe->mode()}, secret key present)");
+            } elseif ($strict) {
+                $this->checkFail('billing.stripe_config', 'Billing enabled but Stripe is not configured — set STRIPE_SECRET_KEY (strict mode)');
+                $allPassed = false;
+            } else {
+                $this->warnCheck('billing.stripe_config', 'Billing enabled but STRIPE_SECRET_KEY is not set (acceptable in dev/staging)');
+            }
+        } catch (\Throwable $e) {
+            $this->warnCheck('billing.stripe_config', 'Could not check Stripe config: ' . $e->getMessage());
+        }
+
+        // 10d. Stripe webhook secret — presence only, NEVER prints the value.
+        try {
+            $stripe = app(\App\Services\Billing\StripeBillingClient::class);
+            if (! $stripe->isEnabled()) {
+                $this->warnCheck('billing.webhook_secret', 'Billing not enabled — STRIPE_WEBHOOK_SECRET not yet required');
+            } elseif ($stripe->hasWebhookSecret()) {
+                $this->pass('billing.webhook_secret', 'STRIPE_WEBHOOK_SECRET is configured');
+            } elseif ($strict) {
+                $this->checkFail('billing.webhook_secret', 'Billing enabled but STRIPE_WEBHOOK_SECRET is not set (strict mode)');
+                $allPassed = false;
+            } else {
+                $this->warnCheck('billing.webhook_secret', 'STRIPE_WEBHOOK_SECRET is not set (acceptable until webhook intake is enabled)');
+            }
+        } catch (\Throwable $e) {
+            $this->warnCheck('billing.webhook_secret', 'Could not check webhook secret: ' . $e->getMessage());
+        }
+
         $this->line('');
 
         if ($allPassed) {

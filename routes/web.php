@@ -7,6 +7,7 @@ use App\Http\Controllers\Admin\ModuleLinksController;
 use App\Http\Controllers\Admin\ModulesController;
 use App\Http\Controllers\Admin\ProvisioningController;
 use App\Http\Controllers\Admin\ServicesController;
+use App\Http\Controllers\Admin\Billing\BillingController;
 use App\Http\Controllers\Admin\Site\CatalogController;
 use App\Http\Controllers\Admin\SionaProvisioningController;
 use App\Http\Controllers\Api\JwksController;
@@ -111,6 +112,21 @@ Route::middleware(['auth', 'role:owner,admin,staff,support'])
 
         Route::get('/billing-approvals',         [BillingApprovalsController::class, 'index'])->name('billing-approvals');
         Route::get('/billing-approvals/{id}',    [BillingApprovalsController::class, 'show'])->name('billing-approvals.show');
+
+        // Phase 24: GlassBilling foundation — owner/admin only, read/list.
+        // Stacked role middleware narrows the staff group to owner/admin.
+        Route::prefix('billing')
+            ->name('billing.')
+            ->middleware('role:owner,admin')
+            ->group(function () {
+                Route::get('/',                       [BillingController::class, 'overview'])->name('overview');
+                Route::get('/customers',              [BillingController::class, 'customers'])->name('customers');
+                Route::get('/customers/{customer}',   [BillingController::class, 'customerShow'])->name('customers.show');
+                Route::get('/products',               [BillingController::class, 'products'])->name('products');
+                Route::get('/plans',                  [BillingController::class, 'plans'])->name('plans');
+                Route::get('/subscriptions',          [BillingController::class, 'subscriptions'])->name('subscriptions');
+                Route::get('/events',                 [BillingController::class, 'events'])->name('events');
+            });
 
         // Phase 22: GlassSite public catalog management — owner/admin only.
         // The stacked role middleware narrows the surrounding staff group to
