@@ -171,4 +171,17 @@ class HealthCheckCommandTest extends TestCase
             ->expectsOutputToContain('billing.entitlement_service')
             ->assertExitCode(0);
     }
+
+    // Phase 26 — provisioning request engine checks.
+
+    public function test_healthcheck_includes_provisioning_checks_and_exits_zero(): void
+    {
+        $this->artisan('glassportal:healthcheck')
+            ->expectsOutputToContain('provisioning.requests_table')
+            ->expectsOutputToContain('provisioning.request_events_table')
+            ->expectsOutputToContain('provisioning.models')
+            ->expectsOutputToContain('provisioning.service')
+            ->expectsOutputToContain('provisioning.driver_registry')
+            ->assertExitCode(0);
+    }
 }

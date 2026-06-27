@@ -952,6 +952,69 @@ class GlassPortalHealthCheck extends Command
             $allPassed = false;
         }
 
+        // 12. Provisioning request engine (Phase 26)
+
+        // 12a. Requests table
+        try {
+            if (Schema::hasTable('provisioning_requests')) {
+                $this->pass('provisioning.requests_table', 'provisioning_requests table present');
+            } else {
+                $this->checkFail('provisioning.requests_table', 'provisioning_requests table missing — run: php artisan migrate');
+                $allPassed = false;
+            }
+        } catch (\Throwable $e) {
+            $this->checkFail('provisioning.requests_table', 'Could not check provisioning_requests table: ' . $e->getMessage());
+            $allPassed = false;
+        }
+
+        // 12b. Request events table
+        try {
+            if (Schema::hasTable('provisioning_request_events')) {
+                $this->pass('provisioning.request_events_table', 'provisioning_request_events table present');
+            } else {
+                $this->checkFail('provisioning.request_events_table', 'provisioning_request_events table missing — run: php artisan migrate');
+                $allPassed = false;
+            }
+        } catch (\Throwable $e) {
+            $this->checkFail('provisioning.request_events_table', 'Could not check provisioning_request_events table: ' . $e->getMessage());
+            $allPassed = false;
+        }
+
+        // 12c. Models loadable
+        try {
+            $ok = class_exists(\App\Models\ProvisioningRequest::class)
+                && class_exists(\App\Models\ProvisioningRequestEvent::class);
+            if ($ok) {
+                $this->pass('provisioning.models', 'Provisioning models loadable (ProvisioningRequest + Event)');
+            } else {
+                $this->checkFail('provisioning.models', 'Provisioning model class(es) not found');
+                $allPassed = false;
+            }
+        } catch (\Throwable $e) {
+            $this->warnCheck('provisioning.models', 'Could not check provisioning models: ' . $e->getMessage());
+        }
+
+        // 12d. Request service resolvable
+        try {
+            app(\App\Services\Provisioning\ProvisioningRequestService::class);
+            $this->pass('provisioning.service', 'ProvisioningRequestService is resolvable from container');
+        } catch (\Throwable $e) {
+            $this->checkFail('provisioning.service', 'ProvisioningRequestService not resolvable: ' . $e->getMessage());
+            $allPassed = false;
+        }
+
+        // 12e. Driver registry (metadata only — nothing executes)
+        try {
+            $drivers = array_keys((array) config('provisioning.drivers', []));
+            if (! empty($drivers)) {
+                $this->pass('provisioning.driver_registry', count($drivers) . ' driver(s) registered: ' . implode(', ', $drivers));
+            } else {
+                $this->warnCheck('provisioning.driver_registry', 'No provisioning drivers configured in config/provisioning.php');
+            }
+        } catch (\Throwable $e) {
+            $this->warnCheck('provisioning.driver_registry', 'Could not check driver registry: ' . $e->getMessage());
+        }
+
         $this->line('');
 
         if ($allPassed) {

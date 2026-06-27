@@ -43,6 +43,11 @@ class Organization extends Model
         return $this->hasMany(BillingServiceEntitlement::class);
     }
 
+    public function provisioningRequests(): HasMany
+    {
+        return $this->hasMany(ProvisioningRequest::class);
+    }
+
     public function isActive(): bool
     {
         return $this->status === 'active';

@@ -162,9 +162,14 @@
             <a href="{{ route('admin.services') }}" class="{{ str_starts_with($route, 'admin.services') ? 'active' : '' }}">
                 <span class="icon">⊞</span> Services
             </a>
-            <a href="{{ route('admin.provisioning') }}" class="{{ str_starts_with($route, 'admin.provisioning') ? 'active' : '' }}">
+            <a href="{{ route('admin.provisioning') }}" class="{{ str_starts_with($route, 'admin.provisioning') && !str_starts_with($route, 'admin.provisioning.requests') ? 'active' : '' }}">
                 <span class="icon">⊕</span> Provisioning
             </a>
+            @if(auth()->user()->isAdmin())
+            <a href="{{ route('admin.provisioning.requests.index') }}" class="{{ str_starts_with($route, 'admin.provisioning.requests') ? 'active' : '' }}">
+                <span class="icon">⊕</span> Provisioning Reqs
+            </a>
+            @endif
             <a href="{{ route('admin.billing-approvals') }}" class="{{ str_starts_with($route, 'admin.billing-approvals') ? 'active' : '' }}">
                 <span class="icon">◈</span> Invoice Approvals
             </a>

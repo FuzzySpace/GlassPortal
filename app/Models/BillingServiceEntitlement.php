@@ -144,6 +144,11 @@ class BillingServiceEntitlement extends Model
         return $this->hasMany(BillingServiceEntitlementEvent::class)->latest('id');
     }
 
+    public function provisioningRequests(): HasMany
+    {
+        return $this->hasMany(ProvisioningRequest::class);
+    }
+
     // -------------------------------------------------------------------------
     // Scopes
 

@@ -9,6 +9,7 @@ use App\Http\Controllers\Admin\ProvisioningController;
 use App\Http\Controllers\Admin\ServicesController;
 use App\Http\Controllers\Admin\Billing\BillingController;
 use App\Http\Controllers\Admin\Billing\EntitlementController;
+use App\Http\Controllers\Admin\Provisioning\RequestController as ProvisioningRequestController;
 use App\Http\Controllers\Admin\Site\CatalogController;
 use App\Http\Controllers\Admin\SionaProvisioningController;
 use App\Http\Controllers\Api\JwksController;
@@ -18,6 +19,7 @@ use App\Http\Controllers\GlassSite\PublicCatalogController;
 use App\Http\Controllers\Portal\DashboardController as PortalDashboardController;
 use App\Http\Controllers\Portal\EntitlementsController as PortalEntitlementsController;
 use App\Http\Controllers\Portal\ModuleLaunchController;
+use App\Http\Controllers\Portal\ProvisioningController as PortalProvisioningController;
 use App\Http\Controllers\Portal\ModulesController as PortalModulesController;
 use App\Http\Controllers\Portal\ServicesController as PortalServicesController;
 use App\Http\Controllers\Portal\SupportController;
@@ -100,6 +102,22 @@ Route::middleware(['auth', 'role:owner,admin,staff,support'])
 
         Route::get('/services',                  [ServicesController::class,     'index'])->name('services');
         Route::get('/services/{id}',             [ServicesController::class,     'show'])->name('services.show');
+
+        // Phase 26: provisioning request engine — owner/admin only. Registered
+        // BEFORE the GlassBilling-bridge /provisioning/{id} route so the static
+        // /provisioning/requests segment is not shadowed by {id}.
+        Route::prefix('provisioning/requests')
+            ->name('provisioning.requests.')
+            ->middleware('role:owner,admin')
+            ->group(function () {
+                Route::get('/',                               [ProvisioningRequestController::class, 'index'])->name('index');
+                Route::get('/{provisioningRequest}',          [ProvisioningRequestController::class, 'show'])->name('show');
+                Route::post('/{provisioningRequest}/{action}', [ProvisioningRequestController::class, 'action'])
+                    ->where('action', 'approve|reject|queue|start|complete|fail|cancel')
+                    ->name('action');
+            });
+
+        // GlassBilling read-bridge provisioning (Phase 5) — distinct from the engine above.
         Route::get('/provisioning',              [ProvisioningController::class, 'index'])->name('provisioning');
         Route::get('/provisioning/{id}',         [ProvisioningController::class, 'show'])->name('provisioning.show');
         Route::get('/customers',                 [CustomersController::class,    'index'])->name('customers');
@@ -168,6 +186,7 @@ Route::middleware(['auth', 'role:customer'])
         Route::get('/',             [PortalDashboardController::class, 'index'])->name('dashboard');
         Route::get('/services',     [PortalServicesController::class,  'index'])->name('services');
         Route::get('/entitlements', [PortalEntitlementsController::class, 'index'])->name('entitlements');
+        Route::get('/provisioning', [PortalProvisioningController::class, 'index'])->name('provisioning');
         Route::get('/modules',      [PortalModulesController::class,   'index'])->name('modules');
         Route::get('/support',      [SupportController::class,         'index'])->name('support');
 
