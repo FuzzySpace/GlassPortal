@@ -5,11 +5,17 @@ own it (per the [ADR](../architecture/billing-source-of-truth.md)), the risk, an
 the next action. Grounded in this repo's actual code (read-only `GlassBillingClient`,
 `organizations.glassbilling_customer_id`, no billing writes, no Stripe).
 
+> **Correction (LXC 310 discovery):** LXC 310 / GHpanel is **legacy GlassPanel**
+> (game-server management), **not** a billing source of truth. Its only
+> billing-shaped tables are integration hooks. It is ruled out as a source for
+> every row below and preserved as **Legacy GlassPanel Reference #001** /
+> **Migration Center Test Case #001**.
+
 **Legend — Status:** ✅ working · 🟡 partial/read-only · 🔴 missing · ❔ unknown/legacy
 
 | # | Area | Current status | Source of truth (today) | Desired source of truth | Risk | Next action |
 |---|---|---|---|---|---|---|
-| 1 | Customer records | 🟡 read-only via API; org↔customer map in portal | GlassBilling (+ portal mapping `glassbilling_customer_id`) | GlassBilling | Legacy `ghpanel` may hold overlapping customers | Confirm GlassBilling is the live customer store; inventory LXC 310 |
+| 1 | Customer records | 🟡 read-only via API; org↔customer map in portal | GlassBilling (+ portal mapping `glassbilling_customer_id`) | GlassBilling (clean, Stripe-first) | LXC 310 ruled out (it's GlassPanel); GlassBilling itself not yet confirmed | Confirm/stand up GlassBilling as the live customer store |
 | 2 | Products / plans | 🟡 read-only; GlassSite has separate *marketing* catalog | GlassBilling (plans); GlassPortal (public catalog copy) | GlassBilling (plans); GlassSite = display only | Catalog price drift vs. real plan price | Keep catalog display-only; link `product_key`→plan later |
 | 3 | Pricing | 🟡 marketing "starting price" only in portal | GlassBilling | GlassBilling | Marketing price mistaken for billable price | Label catalog price as indicative; never bill from it |
 | 4 | Subscriptions | 🟡 read-only (`customerServices`) | GlassBilling | GlassBilling (Stripe-reconciled later) | No Stripe reconciliation yet | Defer to Stripe phase; read-only until then |
@@ -46,13 +52,19 @@ the next action. Grounded in this repo's actual code (read-only `GlassBillingCli
 - **Provisioning must not move into billing.** Rows 15–18 should resolve through
   a request → approval → driver layer (the SIONA module service is the existing
   pattern to generalize), never by GlassBilling mutating infrastructure.
-- **LXC 310 (`ghpanel`) is the wildcard.** Several "GlassBilling (assumed)"
-  cells become certain only after the read-only inventory confirms whether LXC
-  310 still holds live-shaped billing data.
+- **LXC 310 (`ghpanel`) is NOT a billing source — it is legacy GlassPanel.**
+  Discovery confirmed a game-server panel (schema `glasspanel`; tables `nodes`,
+  `servers`, `node_allocations`, …) whose only billing tables
+  (`billing_integrations`, `billing_service_links`) are integration hooks, not a
+  ledger. The "GlassBilling (assumed)" cells become certain only once a clean,
+  Stripe-first GlassBilling exists — **not** from LXC 310. Preserve LXC 310 as
+  **Legacy GlassPanel Reference #001** / **Migration Center Test Case #001**.
 
 ## Priority next actions (condensed)
 
-1. **Inventory LXC 310 (read-only)** → resolve every ❔ and "(assumed)" cell.
+1. **Stand up / confirm a clean GlassBilling** (Stripe-first) → resolves every ❔
+   and "(assumed)" cell. (LXC 310 is ruled out as a source; inventory it only to
+   preserve it as a GlassPanel reference / migration test case.)
 2. **Ship the GlassBilling write/action contract** (rows 5, 20) — no Stripe, no
    infra mutation.
 3. **Provisioning request/approval/driver layer** (rows 15–18) generalizing SIONA.

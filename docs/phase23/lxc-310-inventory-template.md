@@ -1,19 +1,41 @@
-# LXC 310 — Legacy Billing Environment Inventory Template
+# LXC 310 — Legacy GlassPanel Inventory Template
 
 > **READ-ONLY / PASSIVE.** Every command below only *observes* state. There are
 > **no** start/stop/rm/prune/migrate/write commands. Do **not** modify, restart,
-> or tear down anything. This template **locates** env files but never prints
-> their contents — secrets must not be exfiltrated into notes or logs.
+> tear down, import code from, or copy secrets out of this host. This template
+> **locates** env files but never prints their contents — secrets must not be
+> exfiltrated into notes or logs.
 
-**Target (as provided — verify, do not assume):**
+> **What this host actually is (discovery correction):** despite the
+> `*-billing-*` hostname, LXC 310 is a **legacy GlassPanel — Game and Server
+> Management Panel**, *not* a billing system. This inventory exists to
+> snapshot/preserve it as **Legacy GlassPanel Reference #001** and **Migration
+> Center Test Case #001** — **not** to qualify it as a GlassBilling source of
+> truth (it is explicitly ruled out as one).
+
+**Target:**
 
 | Attribute | Value |
 |---|---|
 | Container | LXC 310 |
-| Hostname | `lxc-gh-billing-dev-01` |
+| Hostname | `lxc-gh-billing-dev-01` (misleading — this is GlassPanel) |
 | IP | `10.10.1.40` |
-| Legacy stack | likely `ghpanel` |
+| Legacy stack | `ghpanel` (GlassPanel) |
 | Possible ports | 3000, 8080, 5432, 6379, 1025/8025, 80 |
+
+**Confirmed discovery findings (verify during capture):**
+
+| Evidence | Detail |
+|---|---|
+| Runtime path | `/var/www/html/dev/GHpanel` |
+| Backend | `apps/panel` — Laravel 11 API |
+| Frontend | `apps/web` — Next.js 14 |
+| Agent | `apps/agent` |
+| Migrator | `packages/migrator` — Pterodactyl / Pelican imports |
+| Composer description | "GlassPanel — Game and Server Management Panel API" |
+| DB owner / schema | `glasspanel` |
+| Core tables | `nodes`, `servers`, `node_allocations`, `server_backups`, `server_databases`, `server_schedules`, `server_transfers`, `service_templates`, `template_variables` |
+| Billing footprint | only `billing_integrations`, `billing_service_links` — *integration hooks*, not a ledger |
 
 **How to use:** open a shell *inside* LXC 310 (e.g. `pct enter 310` from the
 Proxmox host, or SSH to `10.10.1.40` if reachable) and run the read-only
@@ -141,7 +163,10 @@ find / -maxdepth 7 -type f \( -name '.env' -o -name '.env.*' -o -name '*.env' \)
 docker ps -a --format '{{.Names}}\t{{.Image}}' | grep -Ei 'postgres|mysql|mariadb|redis'
 # Read-only: list databases (adjust container name; uses --no-password-friendly read):
 #   docker exec -i <pg_container> psql -U postgres -c '\l' 2>/dev/null
-#   docker exec -i <pg_container> psql -U postgres -c '\dt' <dbname> 2>/dev/null
+#   docker exec -i <pg_container> psql -U glasspanel -c '\dt' glasspanel 2>/dev/null
+# Expected (GlassPanel): schema/owner `glasspanel`; tables include nodes, servers,
+# node_allocations, service_templates, … plus billing_integrations /
+# billing_service_links (integration hooks only — NOT a billing ledger).
 # Do NOT dump, alter, or drop. Schema/listing only.
 ```
 
@@ -149,6 +174,10 @@ docker ps -a --format '{{.Names}}\t{{.Image}}' | grep -Ei 'postgres|mysql|mariad
 
 ```bash
 ls -la /var/www 2>/dev/null
+# Confirm the known GlassPanel runtime layout (read-only):
+ls -la /var/www/html/dev/GHpanel 2>/dev/null
+ls -la /var/www/html/dev/GHpanel/apps 2>/dev/null   # expect: panel, web, agent
+ls -la /var/www/html/dev/GHpanel/packages 2>/dev/null # expect: migrator
 find /var/www /srv /usr/share/nginx 2>/dev/null -maxdepth 3 -type d 2>/dev/null
 # Nginx/Apache config (read-only) to find document roots:
 nginx -T 2>/dev/null | grep -E 'root|server_name|listen' | sort -u
@@ -183,12 +212,18 @@ systemctl list-units --type=service --no-pager 2>/dev/null | grep -Ei 'ghpanel|b
 - No database dumps, writes, migrations, `DROP`, or `DELETE`.
 - No editing or printing of secret/`.env` values.
 - No package installs, no service enable/disable, no firewall changes.
+- No importing GHpanel source into any other repo (preservation is by snapshot /
+  source-control archive, after security review — not by copy-paste).
 
 ## Output handling
 
 - Save captured output to a dated file **outside** LXC 310 (e.g. on the ops
-  workstation), e.g. `lxc310-inventory-YYYYMMDD.md`.
+  workstation), e.g. `lxc310-glasspanel-inventory-YYYYMMDD.md`.
 - Redact tokens, passwords, keys, and connection strings before sharing.
+- File the result under the two preservation labels: **Legacy GlassPanel
+  Reference #001** and **Migration Center Test Case #001**.
 - Feed findings into [`billing-gap-matrix.md`](./billing-gap-matrix.md) and the
   archive/keep/rebuild decisions in
-  [`billing-source-reconciliation.md`](./billing-source-reconciliation.md).
+  [`billing-source-reconciliation.md`](./billing-source-reconciliation.md). This
+  inventory confirms LXC 310 is **GlassPanel, not billing** — do not use it to
+  source any GlassBilling data.

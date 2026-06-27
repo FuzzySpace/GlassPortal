@@ -39,8 +39,11 @@ preset is **not** the enforced style and CI does not run it.
 See [`docs/architecture/billing-source-of-truth.md`](docs/architecture/billing-source-of-truth.md)
 and [`docs/phase23/`](docs/phase23/). Until billing reconciliation completes:
 
-- **Do not assume LXC 310 (`ghpanel`, `10.10.1.40`) is current.** It is a legacy
-  dev artifact, non-authoritative until a read-only inventory says otherwise.
+- **LXC 310 / GHpanel (`10.10.1.40`) is legacy GlassPanel — a game-server
+  panel, NOT billing.** Do not treat it as a GlassBilling source of truth.
+  Preserve it as Legacy GlassPanel Reference #001 / Migration Center Test Case
+  #001; future GlassPanel work may review it only after source-control import +
+  security review.
 - **Billing features wait for source-of-truth reconciliation.** Don't add new
   billing lifecycle tables or write paths ahead of the decision.
 - **Stripe-first remains the target** — but Stripe is owned by **GlassBilling**,

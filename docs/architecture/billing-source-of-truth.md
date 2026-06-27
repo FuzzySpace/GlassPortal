@@ -18,10 +18,19 @@ provisioning, the GlassSite public catalog, and the audit trail — but it does
 through a read-only HTTP bridge (`GlassBillingClient`) and maps an organization
 to a billing customer via `organizations.glassbilling_customer_id`.
 
-Several billing/account artifacts pre-date this arrangement (notably the legacy
-`ghpanel` dev stack on LXC 310 — see the inventory template). Before any new
-billing lifecycle work continues, the system needs one unambiguous answer to:
-*where does each billing fact live, authoritatively?*
+Some legacy artifacts pre-date this arrangement. The most prominent — the
+`ghpanel` dev stack on LXC 310 — was initially suspected to be a billing
+source-of-truth candidate. **Discovery has ruled that out:** LXC 310 / GHpanel
+is a legacy **GlassPanel game-server management runtime** (Laravel 11 panel API,
+schema owner `glasspanel`, tables like `nodes` / `servers` / `node_allocations`)
+whose billing footprint is limited to thin *integration hooks*
+(`billing_integrations`, `billing_service_links`) — **not** a billing ledger.
+It is preserved as **Legacy GlassPanel Reference #001** / **Migration Center
+Test Case #001**, not as a billing system. (See
+[`docs/phase23/billing-source-reconciliation.md`](../phase23/billing-source-reconciliation.md).)
+
+Before any new billing lifecycle work continues, the system needs one
+unambiguous answer to: *where does each billing fact live, authoritatively?*
 
 This ADR records that decision so future phases build on a stable foundation.
 
@@ -77,6 +86,7 @@ This ADR records that decision so future phases build on a stable foundation.
 | SIONA workspace mapping | GlassPortal (`siona_workspace_id`) + SIONA | provisions via module service |
 | Public catalog | GlassPortal (`public_product_catalog_entries`) | owns; public read-only |
 | Portal audit trail | GlassPortal (`module_launch_events`) | owns |
+| Legacy GlassPanel (LXC 310 / GHpanel) | n/a — game-server reference, **not billing** | none; preserved as reference/migration test case only |
 
 ## Consequences
 
@@ -87,14 +97,18 @@ This ADR records that decision so future phases build on a stable foundation.
   actions, await events.
 - Infrastructure mutation is decoupled from billing — billing emits intent,
   drivers fulfill, the portal audits.
-- The legacy LXC 310 stack can be treated as a discovery/archival target, not a
-  source of truth (see reconciliation report).
+- GlassBilling is built **clean and Stripe-first**, not forked from the legacy
+  GHpanel/GlassPanel stack — no legacy billing-shaped data is promoted into the
+  ledger.
+- LXC 310 / GHpanel is settled as **legacy GlassPanel** (game-server reference +
+  migration test case), removing it as a billing source-of-truth question.
 
 **Costs / constraints**
 
 - GlassPortal must not add billing-write shortcuts, even when convenient.
-- Until reconciliation completes, some billing facts have an *uncertain* current
-  owner (legacy artifacts); the gap matrix tracks these.
+- Some billing facts still have an *uncertain* current owner until a clean
+  GlassBilling exists; the gap matrix tracks these. (LXC 310 is **no longer** one
+  of them — it is settled as legacy GlassPanel.)
 - A request/approval/driver layer must exist before automated provisioning from
   entitlements is safe. It is not built yet.
 
@@ -102,12 +116,14 @@ This ADR records that decision so future phases build on a stable foundation.
 
 - Implementing Stripe.
 - Creating new billing lifecycle tables in GlassPortal.
-- Migrating or mutating the LXC 310 legacy environment.
+- Migrating, mutating, importing code from, or copying secrets out of the LXC 310
+  legacy GlassPanel environment.
 - Defining the provisioning driver interface in detail (future phase).
 
 ## Guardrails (enforced going forward)
 
-- Billing work must **not** assume LXC 310 is current.
+- Billing work must **not** treat LXC 310 / GHpanel as billing — it is legacy
+  GlassPanel (game-server), preserved as reference / migration test case only.
 - New billing features wait for source-of-truth reconciliation to complete.
 - GlassBilling must **not** directly mutate infrastructure.
 - Provisioning must go through a request / approval / driver layer.
