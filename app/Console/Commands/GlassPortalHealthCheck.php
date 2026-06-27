@@ -804,6 +804,29 @@ class GlassPortalHealthCheck extends Command
             $this->warnCheck('glassbilling.health', 'GlassBilling: exception — ' . $e->getMessage());
         }
 
+        // 9. Billing source-of-truth documentation (Phase 23) — non-blocking.
+        // Advisory only: verifies the reconciliation report + ADR are present so
+        // billing work can find the decision. Never fails the healthcheck.
+        try {
+            if (is_file(base_path('docs/phase23/billing-source-reconciliation.md'))) {
+                $this->pass('billing.source_reconciliation_doc', 'Billing source reconciliation report present (docs/phase23/billing-source-reconciliation.md)');
+            } else {
+                $this->warnCheck('billing.source_reconciliation_doc', 'Billing source reconciliation report missing (docs/phase23/billing-source-reconciliation.md)');
+            }
+        } catch (\Throwable $e) {
+            $this->warnCheck('billing.source_reconciliation_doc', 'Could not check billing reconciliation doc: ' . $e->getMessage());
+        }
+
+        try {
+            if (is_file(base_path('docs/architecture/billing-source-of-truth.md'))) {
+                $this->pass('billing.source_of_truth_adr', 'Billing source-of-truth ADR present (docs/architecture/billing-source-of-truth.md)');
+            } else {
+                $this->warnCheck('billing.source_of_truth_adr', 'Billing source-of-truth ADR missing (docs/architecture/billing-source-of-truth.md)');
+            }
+        } catch (\Throwable $e) {
+            $this->warnCheck('billing.source_of_truth_adr', 'Could not check billing source-of-truth ADR: ' . $e->getMessage());
+        }
+
         $this->line('');
 
         if ($allPassed) {

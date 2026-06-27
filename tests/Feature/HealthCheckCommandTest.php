@@ -113,4 +113,20 @@ class HealthCheckCommandTest extends TestCase
             ->expectsOutputToContain('launch module')
             ->assertExitCode(0);
     }
+
+    // Phase 23 — billing source-of-truth documentation checks (non-blocking).
+
+    public function test_healthcheck_reports_billing_reconciliation_doc(): void
+    {
+        $this->artisan('glassportal:healthcheck')
+            ->expectsOutputToContain('billing.source_reconciliation_doc')
+            ->assertExitCode(0);
+    }
+
+    public function test_healthcheck_reports_billing_source_of_truth_adr(): void
+    {
+        $this->artisan('glassportal:healthcheck')
+            ->expectsOutputToContain('billing.source_of_truth_adr')
+            ->assertExitCode(0);
+    }
 }
