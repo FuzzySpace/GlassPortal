@@ -41,6 +41,11 @@ class BillingProduct extends Model
         return $this->belongsTo(PublicProductCatalogEntry::class, 'public_catalog_entry_id');
     }
 
+    public function serviceEntitlements(): HasMany
+    {
+        return $this->hasMany(BillingServiceEntitlement::class);
+    }
+
     public function scopeActive(Builder $query): Builder
     {
         return $query->where('status', 'active');

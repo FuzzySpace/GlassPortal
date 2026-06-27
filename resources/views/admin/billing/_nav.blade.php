@@ -6,6 +6,7 @@
         'admin.billing.products'      => 'Products',
         'admin.billing.plans'         => 'Plans',
         'admin.billing.subscriptions' => 'Subscriptions',
+        'admin.billing.entitlements'  => 'Entitlements',
         'admin.billing.events'        => 'Events',
     ] as $name => $label)
     <a href="{{ route($name) }}"
