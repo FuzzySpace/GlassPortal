@@ -27,6 +27,7 @@ class BillingEntitlementService
     // Lifecycle event types written to billing_service_entitlement_events.
     public const EVENT_CREATED              = 'created';
     public const EVENT_ACTIVATED            = 'activated';
+    public const EVENT_PAST_DUE             = 'past_due';
     public const EVENT_SUSPENDED            = 'suspended';
     public const EVENT_REACTIVATED          = 'reactivated';
     public const EVENT_CANCELLED            = 'cancelled';
@@ -117,6 +118,11 @@ class BillingEntitlementService
     public function suspend(BillingServiceEntitlement $entitlement, ?string $reason = null, ?Model $actor = null): BillingEntitlementResult
     {
         return $this->transition($entitlement, BillingServiceEntitlement::STATUS_SUSPENDED, self::EVENT_SUSPENDED, $reason, $actor);
+    }
+
+    public function markPastDue(BillingServiceEntitlement $entitlement, ?string $reason = null, ?Model $actor = null): BillingEntitlementResult
+    {
+        return $this->transition($entitlement, BillingServiceEntitlement::STATUS_PAST_DUE, self::EVENT_PAST_DUE, $reason, $actor);
     }
 
     public function reactivate(BillingServiceEntitlement $entitlement, ?string $reason = null, ?Model $actor = null): BillingEntitlementResult

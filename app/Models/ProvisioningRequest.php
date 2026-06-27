@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\RedactsSensitiveArrays;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -19,7 +20,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  */
 class ProvisioningRequest extends Model
 {
-    use HasFactory, SoftDeletes;
+    use HasFactory, RedactsSensitiveArrays, SoftDeletes;
 
     public const STATUS_DRAFT            = 'draft';
     public const STATUS_PENDING_APPROVAL = 'pending_approval';
@@ -256,55 +257,6 @@ class ProvisioningRequest extends Model
     public function canCancel(): bool
     {
         return $this->canTransitionTo(self::STATUS_CANCELLED);
-    }
-
-    // -------------------------------------------------------------------------
-    // Safe display — never surface secret-shaped values, even to admins.
-
-    /** Key-name substrings whose values are redacted before display. */
-    public const SENSITIVE_KEY_PATTERNS = [
-        'token', 'secret', 'password', 'passwd', 'private_key', 'api_key', 'apikey', 'credential',
-    ];
-
-    /**
-     * Recursively redact secret-shaped values from an array by key name.
-     *
-     * @param  array<mixed>|null  $data
-     * @return array<mixed>
-     */
-    public static function redact(?array $data): array
-    {
-        if (empty($data)) {
-            return [];
-        }
-
-        $out = [];
-        foreach ($data as $key => $value) {
-            if (is_string($key) && \Illuminate\Support\Str::contains(strtolower($key), self::SENSITIVE_KEY_PATTERNS)) {
-                $out[$key] = '[redacted]';
-            } elseif (is_array($value)) {
-                $out[$key] = self::redact($value);
-            } else {
-                $out[$key] = $value;
-            }
-        }
-
-        return $out;
-    }
-
-    public function safePayload(): array
-    {
-        return self::redact($this->payload);
-    }
-
-    public function safeResult(): array
-    {
-        return self::redact($this->result);
-    }
-
-    public function safeMetadata(): array
-    {
-        return self::redact($this->metadata);
     }
 }
 

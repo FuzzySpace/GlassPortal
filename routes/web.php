@@ -16,6 +16,7 @@ use App\Http\Controllers\Api\JwksController;
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Dev\SsoConsumeController;
 use App\Http\Controllers\GlassSite\PublicCatalogController;
+use App\Http\Controllers\Portal\BillingController as PortalBillingController;
 use App\Http\Controllers\Portal\DashboardController as PortalDashboardController;
 use App\Http\Controllers\Portal\EntitlementsController as PortalEntitlementsController;
 use App\Http\Controllers\Portal\ModuleLaunchController;
@@ -146,6 +147,11 @@ Route::middleware(['auth', 'role:owner,admin,staff,support'])
                 Route::get('/plans',                  [BillingController::class, 'plans'])->name('plans');
                 Route::get('/subscriptions',          [BillingController::class, 'subscriptions'])->name('subscriptions');
                 Route::get('/events',                 [BillingController::class, 'events'])->name('events');
+                Route::get('/events/{event}',         [BillingController::class, 'eventShow'])->name('events.show');
+
+                // Phase 27: Stripe Checkout sessions (read).
+                Route::get('/checkout-sessions',                   [BillingController::class, 'checkoutSessions'])->name('checkout-sessions');
+                Route::get('/checkout-sessions/{checkoutSession}', [BillingController::class, 'checkoutSessionShow'])->name('checkout-sessions.show');
 
                 // Phase 25: service entitlements — list/detail + controlled lifecycle actions.
                 Route::get('/entitlements',                [EntitlementController::class, 'index'])->name('entitlements');
@@ -187,6 +193,11 @@ Route::middleware(['auth', 'role:customer'])
         Route::get('/services',     [PortalServicesController::class,  'index'])->name('services');
         Route::get('/entitlements', [PortalEntitlementsController::class, 'index'])->name('entitlements');
         Route::get('/provisioning', [PortalProvisioningController::class, 'index'])->name('provisioning');
+
+        // Phase 27: customer checkout start (redirects to Stripe Checkout).
+        Route::get('/billing/plans',                  [PortalBillingController::class, 'plans'])->name('billing.plans');
+        Route::post('/billing/checkout/plans/{plan}', [PortalBillingController::class, 'checkout'])->name('billing.checkout');
+
         Route::get('/modules',      [PortalModulesController::class,   'index'])->name('modules');
         Route::get('/support',      [SupportController::class,         'index'])->name('support');
 

@@ -89,6 +89,7 @@
                 <a href="{{ route('portal.services') }}"  class="{{ $route === 'portal.services'  ? 'active' : '' }}">My Services</a>
                 <a href="{{ route('portal.entitlements') }}" class="{{ $route === 'portal.entitlements' ? 'active' : '' }}">Entitlements</a>
                 <a href="{{ route('portal.provisioning') }}" class="{{ $route === 'portal.provisioning' ? 'active' : '' }}">Provisioning</a>
+                <a href="{{ route('portal.billing.plans') }}" class="{{ $route === 'portal.billing.plans' ? 'active' : '' }}">Plans</a>
                 <a href="{{ route('portal.modules') }}"   class="{{ $route === 'portal.modules'   ? 'active' : '' }}">Modules</a>
                 <a href="#" class="">Invoices <small style="color:var(--text-dim);font-size:.7rem">Phase 7</small></a>
                 <a href="{{ route('portal.support') }}"   class="{{ $route === 'portal.support'   ? 'active' : '' }}">Support</a>
@@ -108,6 +109,9 @@
     <div class="page-wrap">
         @if(session('success'))
             <div class="alert alert-info" style="margin-bottom:1rem">{{ session('success') }}</div>
+        @endif
+        @if(session('error'))
+            <div class="alert alert-warning" style="margin-bottom:1rem">{{ session('error') }}</div>
         @endif
         @yield('content')
     </div>
