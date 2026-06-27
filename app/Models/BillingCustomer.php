@@ -67,6 +67,11 @@ class BillingCustomer extends Model
         return $this->hasMany(BillingServiceEntitlement::class);
     }
 
+    public function provisioningRequests(): HasMany
+    {
+        return $this->hasMany(ProvisioningRequest::class);
+    }
+
     public function scopeActive(Builder $query): Builder
     {
         return $query->where('status', 'active');
