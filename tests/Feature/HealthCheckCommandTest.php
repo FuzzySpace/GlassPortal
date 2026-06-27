@@ -159,4 +159,16 @@ class HealthCheckCommandTest extends TestCase
             ->doesntExpectOutputToContain($whsec)
             ->assertExitCode(0);
     }
+
+    // Phase 25 — entitlement checks.
+
+    public function test_healthcheck_includes_entitlement_checks_and_exits_zero(): void
+    {
+        $this->artisan('glassportal:healthcheck')
+            ->expectsOutputToContain('billing.entitlements_table')
+            ->expectsOutputToContain('billing.entitlement_events_table')
+            ->expectsOutputToContain('billing.entitlement_models')
+            ->expectsOutputToContain('billing.entitlement_service')
+            ->assertExitCode(0);
+    }
 }

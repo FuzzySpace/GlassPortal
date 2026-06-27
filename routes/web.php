@@ -8,6 +8,7 @@ use App\Http\Controllers\Admin\ModulesController;
 use App\Http\Controllers\Admin\ProvisioningController;
 use App\Http\Controllers\Admin\ServicesController;
 use App\Http\Controllers\Admin\Billing\BillingController;
+use App\Http\Controllers\Admin\Billing\EntitlementController;
 use App\Http\Controllers\Admin\Site\CatalogController;
 use App\Http\Controllers\Admin\SionaProvisioningController;
 use App\Http\Controllers\Api\JwksController;
@@ -15,6 +16,7 @@ use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Dev\SsoConsumeController;
 use App\Http\Controllers\GlassSite\PublicCatalogController;
 use App\Http\Controllers\Portal\DashboardController as PortalDashboardController;
+use App\Http\Controllers\Portal\EntitlementsController as PortalEntitlementsController;
 use App\Http\Controllers\Portal\ModuleLaunchController;
 use App\Http\Controllers\Portal\ModulesController as PortalModulesController;
 use App\Http\Controllers\Portal\ServicesController as PortalServicesController;
@@ -126,6 +128,13 @@ Route::middleware(['auth', 'role:owner,admin,staff,support'])
                 Route::get('/plans',                  [BillingController::class, 'plans'])->name('plans');
                 Route::get('/subscriptions',          [BillingController::class, 'subscriptions'])->name('subscriptions');
                 Route::get('/events',                 [BillingController::class, 'events'])->name('events');
+
+                // Phase 25: service entitlements — list/detail + controlled lifecycle actions.
+                Route::get('/entitlements',                [EntitlementController::class, 'index'])->name('entitlements');
+                Route::get('/entitlements/{entitlement}',  [EntitlementController::class, 'show'])->name('entitlements.show');
+                Route::post('/entitlements/{entitlement}/{action}', [EntitlementController::class, 'action'])
+                    ->where('action', 'suspend|reactivate|cancel|terminate|provisioning-pending|provisioning-failed')
+                    ->name('entitlements.action');
             });
 
         // Phase 22: GlassSite public catalog management — owner/admin only.
@@ -156,10 +165,11 @@ Route::middleware(['auth', 'role:customer'])
     ->prefix('portal')
     ->name('portal.')
     ->group(function () {
-        Route::get('/',         [PortalDashboardController::class, 'index'])->name('dashboard');
-        Route::get('/services', [PortalServicesController::class,  'index'])->name('services');
-        Route::get('/modules',  [PortalModulesController::class,   'index'])->name('modules');
-        Route::get('/support',  [SupportController::class,         'index'])->name('support');
+        Route::get('/',             [PortalDashboardController::class, 'index'])->name('dashboard');
+        Route::get('/services',     [PortalServicesController::class,  'index'])->name('services');
+        Route::get('/entitlements', [PortalEntitlementsController::class, 'index'])->name('entitlements');
+        Route::get('/modules',      [PortalModulesController::class,   'index'])->name('modules');
+        Route::get('/support',      [SupportController::class,         'index'])->name('support');
 
         // Audited launch — GET so the browser can open in a new tab if needed
         Route::get('/modules/{moduleLink}/launch', [ModuleLaunchController::class, 'launch'])->name('module.launch');

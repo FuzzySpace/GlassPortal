@@ -38,6 +38,11 @@ class Organization extends Model
         return $this->hasMany(OrganizationModuleLink::class);
     }
 
+    public function billingServiceEntitlements(): HasMany
+    {
+        return $this->hasMany(BillingServiceEntitlement::class);
+    }
+
     public function isActive(): bool
     {
         return $this->status === 'active';

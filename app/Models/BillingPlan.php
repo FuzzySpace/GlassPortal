@@ -47,6 +47,11 @@ class BillingPlan extends Model
         return $this->hasMany(BillingSubscription::class);
     }
 
+    public function serviceEntitlements(): HasMany
+    {
+        return $this->hasMany(BillingServiceEntitlement::class);
+    }
+
     public function scopeActive(Builder $query): Builder
     {
         return $query->where('status', 'active');

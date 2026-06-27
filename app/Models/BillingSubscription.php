@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 /**
@@ -48,6 +49,11 @@ class BillingSubscription extends Model
     public function plan(): BelongsTo
     {
         return $this->belongsTo(BillingPlan::class, 'billing_plan_id');
+    }
+
+    public function serviceEntitlements(): HasMany
+    {
+        return $this->hasMany(BillingServiceEntitlement::class);
     }
 
     public function scopeActive(Builder $query): Builder

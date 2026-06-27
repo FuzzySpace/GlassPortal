@@ -901,6 +901,57 @@ class GlassPortalHealthCheck extends Command
             $this->warnCheck('billing.webhook_secret', 'Could not check webhook secret: ' . $e->getMessage());
         }
 
+        // 11. Billing service entitlements (Phase 25)
+
+        // 11a. Entitlements table
+        try {
+            if (Schema::hasTable('billing_service_entitlements')) {
+                $this->pass('billing.entitlements_table', 'billing_service_entitlements table present');
+            } else {
+                $this->checkFail('billing.entitlements_table', 'billing_service_entitlements table missing — run: php artisan migrate');
+                $allPassed = false;
+            }
+        } catch (\Throwable $e) {
+            $this->checkFail('billing.entitlements_table', 'Could not check entitlements table: ' . $e->getMessage());
+            $allPassed = false;
+        }
+
+        // 11b. Entitlement events table
+        try {
+            if (Schema::hasTable('billing_service_entitlement_events')) {
+                $this->pass('billing.entitlement_events_table', 'billing_service_entitlement_events table present');
+            } else {
+                $this->checkFail('billing.entitlement_events_table', 'billing_service_entitlement_events table missing — run: php artisan migrate');
+                $allPassed = false;
+            }
+        } catch (\Throwable $e) {
+            $this->checkFail('billing.entitlement_events_table', 'Could not check entitlement events table: ' . $e->getMessage());
+            $allPassed = false;
+        }
+
+        // 11c. Entitlement models loadable
+        try {
+            $ok = class_exists(\App\Models\BillingServiceEntitlement::class)
+                && class_exists(\App\Models\BillingServiceEntitlementEvent::class);
+            if ($ok) {
+                $this->pass('billing.entitlement_models', 'Entitlement models loadable (BillingServiceEntitlement + Event)');
+            } else {
+                $this->checkFail('billing.entitlement_models', 'Entitlement model class(es) not found');
+                $allPassed = false;
+            }
+        } catch (\Throwable $e) {
+            $this->warnCheck('billing.entitlement_models', 'Could not check entitlement models: ' . $e->getMessage());
+        }
+
+        // 11d. Lifecycle service resolvable
+        try {
+            app(\App\Services\Billing\BillingEntitlementService::class);
+            $this->pass('billing.entitlement_service', 'BillingEntitlementService is resolvable from container');
+        } catch (\Throwable $e) {
+            $this->checkFail('billing.entitlement_service', 'BillingEntitlementService not resolvable: ' . $e->getMessage());
+            $allPassed = false;
+        }
+
         $this->line('');
 
         if ($allPassed) {
