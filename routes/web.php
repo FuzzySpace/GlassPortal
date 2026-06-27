@@ -7,6 +7,7 @@ use App\Http\Controllers\Admin\ModuleLinksController;
 use App\Http\Controllers\Admin\ModulesController;
 use App\Http\Controllers\Admin\ProvisioningController;
 use App\Http\Controllers\Admin\ServicesController;
+use App\Http\Controllers\Admin\SionaProvisioningController;
 use App\Http\Controllers\Api\JwksController;
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Dev\SsoConsumeController;
@@ -83,6 +84,14 @@ Route::middleware(['auth', 'role:owner,admin,staff,support'])
         Route::get('/provisioning/{id}',         [ProvisioningController::class, 'show'])->name('provisioning.show');
         Route::get('/customers',                 [CustomersController::class,    'index'])->name('customers');
         Route::get('/customers/{id}',            [CustomersController::class,    'show'])->name('customers.show');
+
+        // Phase 20: SIONA tenant provisioning — admin-only (owner/admin).
+        // The stacked role middleware narrows the surrounding staff group to
+        // owner/admin only (intersection), so staff/support get a 403.
+        Route::post('/customers/{organization}/siona/provision', [SionaProvisioningController::class, 'store'])
+            ->middleware('role:owner,admin')
+            ->name('customers.siona.provision');
+
         Route::get('/billing-approvals',         [BillingApprovalsController::class, 'index'])->name('billing-approvals');
         Route::get('/billing-approvals/{id}',    [BillingApprovalsController::class, 'show'])->name('billing-approvals.show');
     });

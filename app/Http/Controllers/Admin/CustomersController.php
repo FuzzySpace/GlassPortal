@@ -6,11 +6,15 @@ use App\Http\Controllers\Controller;
 use App\Models\Organization;
 use App\Services\GlassBilling\GlassBillingClient;
 use App\Services\GlassBilling\GlassBillingResult;
+use App\Services\Siona\SionaConnectorClient;
 use Illuminate\View\View;
 
 class CustomersController extends Controller
 {
-    public function __construct(private GlassBillingClient $billing) {}
+    public function __construct(
+        private GlassBillingClient $billing,
+        private SionaConnectorClient $siona,
+    ) {}
 
     public function index(): View
     {
@@ -53,6 +57,9 @@ class CustomersController extends Controller
             'servicesOk'   => $services->ok,
             'provisionOk'  => $provisioning->ok,
             'approvalsOk'  => $approvals->ok,
+            // Phase 20: SIONA tenant provisioning state for this organization.
+            'sionaLink'                   => $org->sionaModuleLink(),
+            'sionaProvisioningConfigured' => $this->siona->isProvisioningConfigured(),
         ]);
     }
 }

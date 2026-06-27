@@ -647,6 +647,54 @@ class GlassPortalHealthCheck extends Command
             $this->warnCheck('siona.health_probe', 'SIONA health probe failed: ' . $e->getMessage());
         }
 
+        // 7l. SIONA Phase 20 — tenant provisioning + account linking
+        // All warn-only — unconfigured provisioning never fails the healthcheck.
+
+        // 7l-i. Tenant provisioning config
+        try {
+            $provEnabled = (bool) config('siona.provisioning.enabled', false);
+            $provPath    = (string) config('siona.provisioning.path', '');
+            $sionaClient = app(\App\Services\Siona\SionaConnectorClient::class);
+
+            if ($provEnabled && $provPath !== '' && $sionaClient->isProvisioningConfigured()) {
+                $this->pass('siona.tenant_provisioning_config', "SIONA tenant provisioning enabled (POST {$provPath})");
+            } elseif ($provEnabled && $provPath !== '') {
+                $this->warnCheck('siona.tenant_provisioning_config', 'SIONA tenant provisioning enabled but back-channel not ready — set SIONA_ENABLED=true, SIONA_API_URL, and SIONA_API_TOKEN');
+            } elseif ($provEnabled) {
+                $this->warnCheck('siona.tenant_provisioning_config', 'SIONA_PROVISIONING_ENABLED is true but SIONA_PROVISIONING_PATH is empty — set the tenant endpoint path');
+            } else {
+                $this->warnCheck('siona.tenant_provisioning_config', 'SIONA tenant provisioning not enabled (set SIONA_PROVISIONING_ENABLED=true to enable)');
+            }
+        } catch (\Throwable $e) {
+            $this->warnCheck('siona.tenant_provisioning_config', 'Could not check SIONA tenant provisioning config: ' . $e->getMessage());
+        }
+
+        // 7l-ii. Workspace mapping column
+        try {
+            if (Schema::hasColumn('organizations', 'siona_workspace_id')) {
+                $this->pass('siona.workspace_mapping_column', 'organizations.siona_workspace_id column present');
+            } else {
+                $this->warnCheck('siona.workspace_mapping_column', 'organizations.siona_workspace_id missing — run: php artisan migrate');
+            }
+        } catch (\Throwable $e) {
+            $this->warnCheck('siona.workspace_mapping_column', 'Could not check siona_workspace_id column: ' . $e->getMessage());
+        }
+
+        // 7l-iii. Management back-channel readiness (server-to-server API credentials)
+        // Reports presence only — the token value is never read or printed here.
+        try {
+            $sionaClient = app(\App\Services\Siona\SionaConnectorClient::class);
+            if ($sionaClient->isBackChannelReady()) {
+                $this->pass('siona.backchannel_ready', 'SIONA management back-channel ready (API URL + token present)');
+            } elseif ((bool) config('siona.enabled', false) && (string) config('siona.api_url', '') !== '') {
+                $this->warnCheck('siona.backchannel_ready', 'SIONA API URL set but SIONA_API_TOKEN is empty — back-channel calls (provisioning) would be unauthenticated');
+            } else {
+                $this->warnCheck('siona.backchannel_ready', 'SIONA management back-channel not ready (set SIONA_ENABLED=true, SIONA_API_URL, SIONA_API_TOKEN)');
+            }
+        } catch (\Throwable $e) {
+            $this->warnCheck('siona.backchannel_ready', 'Could not check SIONA back-channel readiness: ' . $e->getMessage());
+        }
+
         // 8. GlassBilling connector
         try {
             $health = $billing->health();
