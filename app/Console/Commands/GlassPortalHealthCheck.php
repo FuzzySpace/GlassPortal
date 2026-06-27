@@ -1015,6 +1015,109 @@ class GlassPortalHealthCheck extends Command
             $this->warnCheck('provisioning.driver_registry', 'Could not check driver registry: ' . $e->getMessage());
         }
 
+        // 13. Stripe Checkout + verified webhook intake (Phase 27)
+
+        // 13a. Checkout sessions table
+        try {
+            if (Schema::hasTable('billing_checkout_sessions')) {
+                $this->pass('billing.checkout_sessions_table', 'billing_checkout_sessions table present');
+            } else {
+                $this->checkFail('billing.checkout_sessions_table', 'billing_checkout_sessions table missing — run: php artisan migrate');
+                $allPassed = false;
+            }
+        } catch (\Throwable $e) {
+            $this->checkFail('billing.checkout_sessions_table', 'Could not check checkout sessions table: ' . $e->getMessage());
+            $allPassed = false;
+        }
+
+        // 13b. Checkout session model loadable
+        try {
+            if (class_exists(\App\Models\BillingCheckoutSession::class)) {
+                $this->pass('billing.checkout_model', 'BillingCheckoutSession model loadable');
+            } else {
+                $this->checkFail('billing.checkout_model', 'BillingCheckoutSession model class not found');
+                $allPassed = false;
+            }
+        } catch (\Throwable $e) {
+            $this->warnCheck('billing.checkout_model', 'Could not check checkout model: ' . $e->getMessage());
+        }
+
+        // 13c. Checkout service resolvable
+        try {
+            app(\App\Services\Billing\StripeCheckoutService::class);
+            $this->pass('billing.checkout_service', 'StripeCheckoutService is resolvable from container');
+        } catch (\Throwable $e) {
+            $this->checkFail('billing.checkout_service', 'StripeCheckoutService not resolvable: ' . $e->getMessage());
+            $allPassed = false;
+        }
+
+        // 13d. Webhook intake route registered
+        try {
+            $routes      = app('router')->getRoutes();
+            $webhookRoute = $routes->getByName('api.billing.stripe.webhook');
+            if ($webhookRoute !== null) {
+                $this->pass('billing.stripe_webhook_route', 'api.billing.stripe.webhook route registered at POST /api/billing/stripe/webhook');
+            } else {
+                $this->checkFail('billing.stripe_webhook_route', 'api.billing.stripe.webhook route not found — check routes/api.php');
+                $allPassed = false;
+            }
+        } catch (\Throwable $e) {
+            $this->warnCheck('billing.stripe_webhook_route', 'Could not check Stripe webhook route: ' . $e->getMessage());
+        }
+
+        // 13e. Webhook intake service resolvable
+        try {
+            app(\App\Services\Billing\StripeWebhookService::class);
+            $this->pass('billing.stripe_webhook_service', 'StripeWebhookService is resolvable from container');
+        } catch (\Throwable $e) {
+            $this->checkFail('billing.stripe_webhook_service', 'StripeWebhookService not resolvable: ' . $e->getMessage());
+            $allPassed = false;
+        }
+
+        // 13f. Checkout config — presence only, NEVER prints key values.
+        // Warn while disabled/dev; strict-fail only when checkout is enabled but
+        // Stripe is not actually configured (it would fail at runtime).
+        try {
+            $checkoutEnabled = (bool) config('billing.checkout.enabled', false);
+            $stripe          = app(\App\Services\Billing\StripeBillingClient::class);
+
+            if (! $checkoutEnabled) {
+                $this->warnCheck('billing.stripe_checkout_config', 'Customer checkout disabled (set GLASSBILLING_CHECKOUT_ENABLED=true to enable)');
+            } elseif ($stripe->isConfigured()) {
+                $mode = (string) config('billing.checkout.mode', 'subscription');
+                $this->pass('billing.stripe_checkout_config', "Customer checkout enabled (mode={$mode}, Stripe configured)");
+            } elseif ($strict) {
+                $this->checkFail('billing.stripe_checkout_config', 'Checkout enabled but Stripe is not configured — set GLASSBILLING_ENABLED=true, GLASSBILLING_MODE=stripe, STRIPE_SECRET_KEY (strict mode)');
+                $allPassed = false;
+            } else {
+                $this->warnCheck('billing.stripe_checkout_config', 'Checkout enabled but Stripe is not configured — checkout will fail safely until STRIPE_SECRET_KEY is set');
+            }
+        } catch (\Throwable $e) {
+            $this->warnCheck('billing.stripe_checkout_config', 'Could not check checkout config: ' . $e->getMessage());
+        }
+
+        // 13g. Webhook intake config — presence only, NEVER prints the secret.
+        // Fail closed under strict: enabled intake with no signing secret cannot
+        // verify signatures and would reject everything.
+        try {
+            $webhooksEnabled = (bool) config('billing.webhooks.enabled', false);
+            $stripe          = app(\App\Services\Billing\StripeBillingClient::class);
+
+            if (! $webhooksEnabled) {
+                $this->warnCheck('billing.stripe_webhook_config', 'Webhook intake disabled (set GLASSBILLING_WEBHOOKS_ENABLED=true to enable; endpoint returns 404 while disabled)');
+            } elseif ($stripe->hasWebhookSecret()) {
+                $tolerance = (int) config('billing.webhooks.tolerance', 300);
+                $this->pass('billing.stripe_webhook_config', "Webhook intake enabled (signature verification on, tolerance={$tolerance}s)");
+            } elseif ($strict) {
+                $this->checkFail('billing.stripe_webhook_config', 'Webhook intake enabled but STRIPE_WEBHOOK_SECRET is not set — signatures cannot be verified; intake fails closed (strict mode)');
+                $allPassed = false;
+            } else {
+                $this->warnCheck('billing.stripe_webhook_config', 'Webhook intake enabled but STRIPE_WEBHOOK_SECRET is not set — endpoint fails closed (HTTP 500) until the secret is configured');
+            }
+        } catch (\Throwable $e) {
+            $this->warnCheck('billing.stripe_webhook_config', 'Could not check webhook intake config: ' . $e->getMessage());
+        }
+
         $this->line('');
 
         if ($allPassed) {

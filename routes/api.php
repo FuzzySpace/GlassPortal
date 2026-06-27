@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\BackChannelRedeemController;
+use App\Http\Controllers\Api\Billing\StripeWebhookController;
 use App\Http\Controllers\Api\Connectors\SionaHealthController;
 use App\Services\GlassBilling\GlassBillingClient;
 use Illuminate\Support\Facades\Route;
@@ -58,6 +59,22 @@ Route::post('/sso/backchannel/redeem/{moduleKey}', [BackChannelRedeemController:
 
 Route::get('/connectors/siona/health', [SionaHealthController::class, 'index'])
     ->name('api.connectors.siona.health');
+
+/*
+|--------------------------------------------------------------------------
+| Stripe webhook intake — Phase 27
+|--------------------------------------------------------------------------
+|
+| Public, signature-verified Stripe webhook endpoint. Verifies the
+| Stripe-Signature header against STRIPE_WEBHOOK_SECRET, records events
+| idempotently, and dispatches to billing handlers. Never exposes secrets.
+| Throttled to absorb bursts/retries without unbounded work.
+|
+*/
+
+Route::post('/billing/stripe/webhook', [StripeWebhookController::class, 'handle'])
+    ->middleware('throttle:120,1')
+    ->name('api.billing.stripe.webhook');
 
 /*
 |--------------------------------------------------------------------------

@@ -48,6 +48,11 @@ class Organization extends Model
         return $this->hasMany(ProvisioningRequest::class);
     }
 
+    public function billingCheckoutSessions(): HasMany
+    {
+        return $this->hasMany(BillingCheckoutSession::class);
+    }
+
     public function isActive(): bool
     {
         return $this->status === 'active';

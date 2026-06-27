@@ -56,6 +56,11 @@ class BillingSubscription extends Model
         return $this->hasMany(BillingServiceEntitlement::class);
     }
 
+    public function checkoutSessions(): HasMany
+    {
+        return $this->hasMany(BillingCheckoutSession::class);
+    }
+
     public function scopeActive(Builder $query): Builder
     {
         return $query->whereIn('status', self::LIVE_STATUSES);

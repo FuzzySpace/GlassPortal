@@ -34,9 +34,48 @@ return [
         'webhook_secret'  => env('STRIPE_WEBHOOK_SECRET', ''),
         // Publishable key (pk_...) — safe for the browser.
         'publishable_key' => env('STRIPE_PUBLISHABLE_KEY', ''),
+        // Stripe REST base. Configurable so tests can Http::fake() it; never the SDK.
+        'api_base'        => env('STRIPE_API_BASE', 'https://api.stripe.com'),
     ],
 
     // Default ISO currency for billing records created locally.
     'currency' => env('GLASSBILLING_CURRENCY', 'USD'),
+
+    /*
+    |--------------------------------------------------------------------------
+    | Stripe Checkout (Phase 27)
+    |--------------------------------------------------------------------------
+    */
+    'checkout' => [
+        'enabled'     => filter_var(env('GLASSBILLING_CHECKOUT_ENABLED', false), FILTER_VALIDATE_BOOLEAN),
+        // Default Checkout mode for plan subscriptions.
+        'mode'        => env('STRIPE_CHECKOUT_MODE', 'subscription'),
+        'success_url' => env('STRIPE_CHECKOUT_SUCCESS_URL', ''),
+        'cancel_url'  => env('STRIPE_CHECKOUT_CANCEL_URL', ''),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Stripe Webhooks (Phase 27)
+    |--------------------------------------------------------------------------
+    */
+    'webhooks' => [
+        'enabled'   => filter_var(env('GLASSBILLING_WEBHOOKS_ENABLED', false), FILTER_VALIDATE_BOOLEAN),
+        // Max age (seconds) of the signed webhook timestamp.
+        'tolerance' => (int) env('STRIPE_WEBHOOK_TOLERANCE', 300),
+        // Event types this phase processes; anything else is recorded + ignored.
+        'allowed_events' => [
+            'checkout.session.completed',
+            'customer.created',
+            'customer.updated',
+            'customer.subscription.created',
+            'customer.subscription.updated',
+            'customer.subscription.deleted',
+            'invoice.paid',
+            'invoice.payment_succeeded',
+            'invoice.payment_failed',
+            'payment_method.attached',
+        ],
+    ],
 
 ];

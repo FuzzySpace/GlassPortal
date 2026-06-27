@@ -4,6 +4,7 @@ namespace App\Services\Billing;
 
 use App\Models\BillingCustomer;
 use App\Models\BillingEvent;
+use Illuminate\Support\Facades\Http;
 
 /**
  * Stripe-first billing client wrapper (Phase 24).
@@ -169,6 +170,51 @@ class StripeBillingClient
             'payload'           => $payload,
             'status'            => BillingEvent::STATUS_PENDING,
         ]);
+    }
+
+    /**
+     * Create a Stripe Checkout Session over the REST API (SDK-free; faked in
+     * tests via Http::fake). The secret key authenticates the request and is
+     * NEVER returned, logged, or echoed — including in error messages.
+     *
+     * @param array<string, mixed> $params Stripe Checkout Session params.
+     * @return array{ok: bool, id?: ?string, url?: ?string, data?: array, error?: string, http_status?: int, message?: string}
+     */
+    public function createCheckoutSession(array $params): array
+    {
+        if (! $this->isConfigured()) {
+            return ['ok' => false, 'error' => 'not_configured', 'message' => 'Stripe is not configured.'];
+        }
+
+        $base = rtrim((string) config('billing.stripe.api_base', 'https://api.stripe.com'), '/');
+
+        try {
+            $response = Http::asForm()
+                ->withToken($this->secretKey())
+                ->post($base . '/v1/checkout/sessions', $params);
+
+            if ($response->successful()) {
+                $data = (array) $response->json();
+
+                return [
+                    'ok'   => true,
+                    'id'   => $data['id'] ?? null,
+                    'url'  => $data['url'] ?? null,
+                    'data' => $data,
+                ];
+            }
+
+            // Do NOT include the Stripe response body — it can echo request data.
+            return [
+                'ok'          => false,
+                'error'       => 'stripe_error',
+                'http_status' => $response->status(),
+                'message'     => 'Stripe returned HTTP ' . $response->status() . '.',
+            ];
+        } catch (\Throwable $e) {
+            // Never surface the raw exception (may contain the credential-bearing URL).
+            return ['ok' => false, 'error' => 'exception', 'message' => 'Stripe checkout request failed.'];
+        }
     }
 
     /** Read the secret key without ever exposing it beyond this class. */

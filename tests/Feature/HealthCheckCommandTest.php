@@ -184,4 +184,78 @@ class HealthCheckCommandTest extends TestCase
             ->expectsOutputToContain('provisioning.driver_registry')
             ->assertExitCode(0);
     }
+
+    // Phase 27 — Stripe Checkout + webhook intake checks.
+
+    public function test_healthcheck_includes_checkout_and_webhook_checks_and_exits_zero(): void
+    {
+        // Default dev: checkout/webhooks disabled → warns, never fails.
+        $this->artisan('glassportal:healthcheck')
+            ->expectsOutputToContain('billing.checkout_sessions_table')
+            ->expectsOutputToContain('billing.checkout_model')
+            ->expectsOutputToContain('billing.checkout_service')
+            ->expectsOutputToContain('billing.stripe_webhook_route')
+            ->expectsOutputToContain('billing.stripe_webhook_service')
+            ->expectsOutputToContain('billing.stripe_checkout_config')
+            ->expectsOutputToContain('billing.stripe_webhook_config')
+            ->assertExitCode(0);
+    }
+
+    public function test_healthcheck_strict_fails_when_checkout_enabled_but_stripe_unconfigured(): void
+    {
+        config([
+            'billing.checkout.enabled'  => true,
+            'billing.enabled'           => true,
+            'billing.mode'              => 'stripe',
+            'billing.stripe.secret_key' => '', // enabled but not configured
+        ]);
+
+        $this->artisan('glassportal:healthcheck --strict')->assertExitCode(1);
+    }
+
+    public function test_healthcheck_strict_fails_when_webhooks_enabled_but_secret_missing(): void
+    {
+        config([
+            'billing.webhooks.enabled'      => true,
+            'billing.stripe.webhook_secret' => '', // enabled but no signing secret
+        ]);
+
+        $this->artisan('glassportal:healthcheck --strict')->assertExitCode(1);
+    }
+
+    public function test_healthcheck_strict_passes_when_checkout_and_webhooks_fully_configured(): void
+    {
+        config([
+            'billing.enabled'               => true,
+            'billing.mode'                  => 'stripe',
+            'billing.stripe.secret_key'     => 'sk_test_strict',
+            'billing.stripe.webhook_secret' => 'whsec_strict',
+            'billing.checkout.enabled'      => true,
+            'billing.webhooks.enabled'      => true,
+        ]);
+
+        $this->artisan('glassportal:healthcheck --strict')
+            ->expectsOutputToContain('Customer checkout enabled')
+            ->expectsOutputToContain('Webhook intake enabled')
+            ->assertExitCode(0);
+    }
+
+    public function test_healthcheck_never_prints_checkout_or_webhook_secret(): void
+    {
+        $secret = 'sk_live_phase27_secret_MUST_NOT_PRINT';
+        $whsec  = 'whsec_phase27_secret_MUST_NOT_PRINT';
+        config([
+            'billing.enabled'               => true,
+            'billing.mode'                  => 'stripe',
+            'billing.stripe.secret_key'     => $secret,
+            'billing.stripe.webhook_secret' => $whsec,
+            'billing.checkout.enabled'      => true,
+            'billing.webhooks.enabled'      => true,
+        ]);
+
+        $this->artisan('glassportal:healthcheck')
+            ->doesntExpectOutputToContain($secret)
+            ->doesntExpectOutputToContain($whsec)
+            ->assertExitCode(0);
+    }
 }

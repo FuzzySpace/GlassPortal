@@ -49,6 +49,11 @@ class User extends Authenticatable
         return $this->hasMany(ProvisioningRequest::class);
     }
 
+    public function billingCheckoutSessions(): HasMany
+    {
+        return $this->hasMany(BillingCheckoutSession::class);
+    }
+
     // ── Role helpers ─────────────────────────────────────────────────────────
 
     public function isOwner(): bool

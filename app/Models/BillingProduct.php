@@ -46,6 +46,11 @@ class BillingProduct extends Model
         return $this->hasMany(BillingServiceEntitlement::class);
     }
 
+    public function checkoutSessions(): HasMany
+    {
+        return $this->hasMany(BillingCheckoutSession::class);
+    }
+
     public function scopeActive(Builder $query): Builder
     {
         return $query->where('status', 'active');

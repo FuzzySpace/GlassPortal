@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin\Billing;
 
 use App\Http\Controllers\Controller;
+use App\Models\BillingCheckoutSession;
 use App\Models\BillingCustomer;
 use App\Models\BillingEvent;
 use App\Models\BillingInvoice;
@@ -91,5 +92,26 @@ class BillingController extends Controller
         return view('admin.billing.events', [
             'events' => BillingEvent::orderByDesc('created_at')->paginate(50),
         ]);
+    }
+
+    public function eventShow(BillingEvent $event): View
+    {
+        return view('admin.billing.event-detail', ['event' => $event]);
+    }
+
+    public function checkoutSessions(): View
+    {
+        return view('admin.billing.checkout-sessions', [
+            'sessions' => BillingCheckoutSession::with(['customer', 'plan'])
+                ->orderByDesc('created_at')
+                ->paginate(25),
+        ]);
+    }
+
+    public function checkoutSessionShow(BillingCheckoutSession $checkoutSession): View
+    {
+        $checkoutSession->load(['customer', 'product', 'plan', 'subscription', 'organization', 'user']);
+
+        return view('admin.billing.checkout-session-detail', ['session' => $checkoutSession]);
     }
 }
