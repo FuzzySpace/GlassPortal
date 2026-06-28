@@ -130,6 +130,22 @@ class HealthCheckCommandTest extends TestCase
             ->assertExitCode(0);
     }
 
+    // Phase 28A — repository consolidation documentation checks (non-blocking).
+
+    public function test_healthcheck_reports_repository_consolidation_doc(): void
+    {
+        $this->artisan('glassportal:healthcheck')
+            ->expectsOutputToContain('architecture.repository_consolidation_doc')
+            ->assertExitCode(0);
+    }
+
+    public function test_healthcheck_reports_glassbilling_boundary_doc(): void
+    {
+        $this->artisan('glassportal:healthcheck')
+            ->expectsOutputToContain('architecture.glassbilling_boundary_doc')
+            ->assertExitCode(0);
+    }
+
     // Phase 24 — billing foundation checks.
 
     public function test_healthcheck_includes_billing_foundation_checks_and_exits_zero(): void
