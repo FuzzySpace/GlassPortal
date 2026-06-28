@@ -64,7 +64,7 @@ class AdminPilotReadinessPageTest extends TestCase
             ->get('/admin/pilot-readiness')
             ->assertStatus(200)
             // Phase 29B advisory checks render under the existing runtime/state categories.
-            ->assertSeeText('Canonical and legacy runtime URLs are distinct.')
+            ->assertSeeText('Canonical and standalone runtime URLs are distinct.')
             ->assertSeeText('Runtime consolidation plan (ADR) present');
     }
 
@@ -75,7 +75,7 @@ class AdminPilotReadinessPageTest extends TestCase
         $this->actingAs($this->user(UserRole::Admin->value))
             ->get('/admin/pilot-readiness')
             ->assertStatus(200)
-            ->assertSeeText('is the LEGACY billing URL');
+            ->assertSeeText('is the standalone billing URL');
     }
 
     public function test_page_warns_when_on_legacy_billing_url(): void
@@ -87,7 +87,7 @@ class AdminPilotReadinessPageTest extends TestCase
             ->get('/admin/pilot-readiness')
             ->assertStatus(200)
             ->assertSeeText('Runtime exposure readiness')
-            ->assertSeeText('LEGACY billing runtime');
+            ->assertSeeText('standalone billing runtime');
     }
 
     public function test_page_never_renders_secret_values(): void

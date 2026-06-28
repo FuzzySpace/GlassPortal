@@ -13,9 +13,11 @@ an autonomous agent. No AI agents are created or run by this process.
 
 ## Why
 
-Phases 23–29 made GlassPortal the canonical app while a **legacy billing runtime
-still runs** (`:18180`) and a **standalone billing repo** still exists. The most
-likely failure mode is acting on a stale assumption — editing the wrong repo,
+Phases 23–29 made GlassPortal the canonical app for the active code while a
+**standalone billing runtime still runs** (`:18180`) and a **standalone billing
+service/repo** still exists — **preserved / potential canonical, pending the
+Phase 29C reconciliation** (not legacy/dead). The most likely failure mode is
+acting on a stale assumption — editing the wrong repo,
 targeting the wrong URL, or touching a system that must not change. This preflight
 makes the current truth explicit first.
 
@@ -36,7 +38,9 @@ Work top to bottom. Don't skip.
 
 ### 3. Confirm public runtime
 - [ ] Canonical pilot target is **`http://40.160.61.180:18188`** (GlassPortal).
-- [ ] **`http://40.160.61.180:18180`** is **legacy/reference** — never the target.
+- [ ] **`http://40.160.61.180:18180`** is the **standalone billing service**
+      (preserved / potential canonical, pending 29C) — **never the pilot target**,
+      and **not** to be retired/migrated/moved.
 - [ ] Read [`docs/state/runtime-map.md`](../state/runtime-map.md).
 - [ ] If `APP_URL` / the pilot target points at `:18180`, treat it as a blocker.
 

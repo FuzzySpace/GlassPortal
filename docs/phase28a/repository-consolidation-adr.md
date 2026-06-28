@@ -9,12 +9,24 @@ GlassBilling module built across Phases 23–28.
 
 ---
 
+> **⚠️ Correction (Phase 29B → 29C pending).** The standalone
+> `FuzzySpace/GlassBilling` is **not** legacy/dead. It is an existing
+> **billing/provisioning service designed to integrate with GlassPortal and
+> GlassPanel** — treat it as **preserved / reference / potential canonical
+> billing service**, pending the **Phase 29C** architectural reconciliation. Do
+> not retire, archive, delete, dismiss, migrate, or move it. Read every
+> "legacy / reference" below as that corrected status. GlassPortal hosting the
+> *active code today* still holds; the long-term canonical billing service is the
+> open 29C question. See [`../state/phase-status.md`](../state/phase-status.md).
+
 ## Purpose
 
-Make the implicit explicit: lock in that **GlassPortal is the canonical active
-repository** and that **GlassBilling is a bounded module inside GlassPortal**,
-so future maintainers don't split active development across repos or blindly
-import legacy code from the standalone `FuzzySpace/GlassBilling` repository.
+Make the implicit explicit: lock in that **GlassPortal hosts the active
+application/billing code today** and that the **embedded GlassBilling-domain
+module lives inside GlassPortal**, so future maintainers don't split active
+development across repos or blindly import code from the standalone
+`FuzzySpace/GlassBilling` repository (which is preserved / potential canonical,
+pending Phase 29C — not legacy/dead).
 
 ## Decision summary
 
@@ -29,7 +41,7 @@ import legacy code from the standalone `FuzzySpace/GlassBilling` repository.
 | Repository | Status after this phase |
 |---|---|
 | `FuzzySpace/GlassPortal` | **Canonical, active.** Home of all current billing development. Only this repo is edited (docs only). |
-| `FuzzySpace/GlassBilling` (standalone) | **Legacy / reference.** Untouched — not deleted, archived, renamed, or mutated. |
+| `FuzzySpace/GlassBilling` (standalone) | **Preserved / reference / potential canonical (pending Phase 29C).** Existing billing/provisioning service (integrates with GlassPortal + GlassPanel). Untouched — not deleted, archived, renamed, mutated, migrated, or moved. NOT legacy/dead. |
 | SIONA, GlassBilling standalone, GHpanel / LXC 310 | **Not touched.** |
 
 ## Current active code location
@@ -71,8 +83,10 @@ sections.
 - New billing work goes in GlassPortal under the conventions above.
 - Do **not** move billing code to the standalone `FuzzySpace/GlassBilling` repo
   unless a future explicit extraction phase is approved.
-- Do **not** blindly import old standalone-repo code; if reviewed later, treat it
-  as legacy/reference subject to source-control import + security review.
+- Do **not** retire, archive, delete, dismiss, migrate, or move the standalone
+  GlassBilling repo; do **not** blindly import its code (if reviewed later, treat
+  it as preserved / potential-canonical, subject to source-control import +
+  security review, pending Phase 29C).
 - Keep billing namespaced and bounded using the existing conventions.
 
 (Also captured in [`CLAUDE.md`](../../CLAUDE.md) → "Repository consolidation".)

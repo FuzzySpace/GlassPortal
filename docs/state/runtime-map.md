@@ -6,18 +6,23 @@
 > reconcile** — do not assume. Fuller detail:
 > [`docs/phase29/runtime-exposure-inventory.md`](../phase29/runtime-exposure-inventory.md).
 >
-> Last reviewed: Phase 29B (runtime consolidation planning). This file documents
-> reality; it changes no infrastructure.
+> Last reviewed: Phase 29B correction. This file documents reality; it changes no
+> infrastructure.
+>
+> **Correction:** the `:18180` runtime is the **standalone GlassBilling service**
+> (integrates with GlassPortal + GlassPanel) — **preserved / potential canonical**
+> pending Phase 29C, **not** legacy/dead. Below, "legacy" container labels are
+> historical descriptors of the `ghbilling-*` stack, not a retirement judgement.
 
 ## Public URLs
 
 | Role | URL | Notes |
 |---|---|---|
 | **Canonical pilot target** | **http://40.160.61.180:18188** | GlassPortal. **Test here.** Login at `/login`. |
-| Legacy / reference | http://40.160.61.180:18180 | Standalone billing runtime. Reference only — **do not pilot here.** |
+| Standalone billing (preserved / potential canonical, pending 29C) | http://40.160.61.180:18180 | Standalone GlassBilling service. Not the pilot target — **do not pilot here** — but **not** legacy/dead. |
 
 - **Pilot target = `:18188`.** The readiness checks warn if the configured pilot
-  target is the legacy `:18180`, or if the canonical URL is not `:18188`.
+  target is the standalone `:18180`, or if the canonical URL is not `:18188`.
 
 ## Internal container mapping (host `lxc-gh-glassbilling-pr2-01`)
 
@@ -48,16 +53,20 @@
 
 ## Known unresolved
 
-**Runtime consolidation is pending (planned in Phase 29B).** Two runtimes
-(`:18188` canonical, `:18180` legacy) coexist by design. Phase 29B produced the
+**Runtime consolidation is pending (planned in Phase 29B); billing-service
+reconciliation is pending Phase 29C.** Two runtimes (`:18188` canonical pilot,
+`:18180` standalone billing) coexist by design. Phase 29B produced the
 controlled, staged **plan** — but executed none of it:
 
-- The **legacy billing runtime remains online** on `:18180` (project
-  `ghbilling`); it is **not** stopped, restricted, or redirected.
-- **Retirement/restriction is pending explicit approval**, a verified backup, a
-  dependency check, and confirmation that GlassPortal covers required workflows.
-- The **canonical pilot target remains `:18188`**; `:18180` remains
-  **legacy/reference** only.
+- The **standalone billing runtime remains online** on `:18180` (project
+  `ghbilling`); it is **not** stopped, restricted, redirected, migrated, or moved.
+- The standalone GlassBilling service is **preserved / potential canonical**
+  (integrates with GlassPortal + GlassPanel) — **not** legacy/dead. Whether it is
+  the canonical billing service is the **Phase 29C** reconciliation.
+- **Retirement/restriction is pending** Phase 29C + explicit approval, a verified
+  backup, a dependency check, and confirmation of the canonical billing service.
+- The **canonical pilot target remains `:18188`**; `:18180` remains the
+  preserved standalone runtime.
 
 See the plan ([`../architecture/runtime-consolidation-plan.md`](../architecture/runtime-consolidation-plan.md)),
 the legacy inventory ([`legacy-billing-runtime-inventory.md`](./legacy-billing-runtime-inventory.md)),

@@ -1,17 +1,26 @@
-# State — Legacy Billing Runtime Inventory
+# State — Standalone Billing Runtime Inventory
 
-> **Drift anchor + consolidation input.** What is *known* about the legacy
-> standalone Billing runtime, and what is *unknown* and must be verified by an
-> operator before any retirement. Documentation only — **the legacy runtime is
-> not modified, stopped, or retired in Phase 29B.** Plan:
+> _(Filename `legacy-billing-runtime-inventory.md` is historical; see the
+> corrected status below — this runtime is **not** legacy/dead.)_
+>
+> **Drift anchor + consolidation input.** What is *known* about the standalone
+> Billing runtime, and what is *unknown* and must be verified by an operator
+> before any consolidation step. Documentation only — **the runtime is not
+> modified, stopped, or retired in Phase 29B.** Plan:
 > [`docs/architecture/runtime-consolidation-plan.md`](../architecture/runtime-consolidation-plan.md);
 > runbook: [`docs/runbooks/runtime-consolidation.md`](../runbooks/runtime-consolidation.md).
-> Last reviewed: Phase 29B.
+> Last reviewed: Phase 29B correction.
 
 ## Status
 
-**Legacy / reference runtime — DO NOT RETIRE YET.** Online and public on
-`:18180`. Retirement/restriction is pending the staged plan + explicit approval.
+**Standalone billing/provisioning service runtime — preserved / reference /
+potential canonical, pending Phase 29C. DO NOT RETIRE.** This is an existing
+billing/provisioning service **designed to integrate with GlassPortal and
+GlassPanel** — **not** legacy/dead. Online and public on `:18180`. Whether it
+becomes the canonical billing service (vs the embedded GlassPortal module) is the
+**Phase 29C** architectural reconciliation. **Do not retire, archive, delete,
+dismiss, migrate data, or move code**; any restriction/redirect/stop is pending
+the staged plan + explicit approval.
 
 ## Known inventory
 
@@ -44,7 +53,8 @@ decision:
 - [ ] Must any **data be exported before shutdown**?
 - [ ] Is the **frontend on `:3000`** (`ghbilling-portal-1`) still needed?
 
-Until every box above is checked and recorded, the legacy runtime stays online.
+Until every box above is checked and recorded, the standalone runtime stays
+online and preserved (do not retire/migrate/move).
 
 ## How these get answered (pointer)
 

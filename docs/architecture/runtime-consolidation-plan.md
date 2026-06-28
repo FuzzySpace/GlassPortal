@@ -1,4 +1,13 @@
-# ADR: Runtime Consolidation Plan (Legacy Billing ↔ Canonical GlassPortal)
+# ADR: Runtime Consolidation Plan (Standalone Billing ↔ Canonical GlassPortal)
+
+> **⚠️ Correction (Phase 29B → 29C pending).** Throughout this ADR, the
+> `:18180` / `ghbilling` runtime is the deployment of the **standalone
+> GlassBilling service** — an existing **billing/provisioning service designed to
+> integrate with GlassPortal and GlassPanel**. It is **preserved / reference /
+> potential canonical billing service**, **not** legacy/dead. Whether it becomes
+> the canonical billing service is the **Phase 29C** reconciliation. Where the
+> text below says "legacy," read "standalone / preserved / potential canonical."
+> Do not retire, archive, delete, dismiss, migrate, or move it.
 
 - **Status:** Accepted (Phase 29B) — **plan only; no runtime change**
 - **Date:** 2026-06-28
@@ -55,11 +64,13 @@ them — and deliberately stops short of executing any of it.
 **GlassPortal (`:18188`, project `glassportal-source`, container
 `glassportal-source-app-1`).** All pilot/product-test work targets this runtime.
 
-## Legacy runtime status
+## Standalone runtime status
 
-**Online and preserved as legacy/reference.** The `ghbilling` project keeps
-running on `:18180`. It is **not** retired, restricted, or redirected in this
-phase.
+**Online and preserved as a potential canonical billing service (pending Phase
+29C).** The `ghbilling` project keeps running on `:18180`. It is the deployment
+of the standalone GlassBilling service (integrates with GlassPortal + GlassPanel)
+— **not** legacy/dead, and **not** retired, restricted, redirected, migrated, or
+moved in this phase.
 
 ## What is known
 
@@ -158,12 +169,15 @@ operator approval; this ADR does not pre-commit to one.
 ## Decision statement
 
 - **Short term:** Keep **both runtimes online** while pilot testing targets
-  GlassPortal on `:18188`.
-- **Medium term:** **Inventory** legacy Billing data, routes, UI behavior,
-  environment variables, and any useful code/docs **before** retirement.
-- **Long term:** **Retire or restrict `:18180` only after** explicit approval,
-  backup/export, validation that nothing depends on it, and confirmation that
-  GlassPortal covers the required workflows.
+  GlassPortal on `:18188`. The standalone billing runtime stays preserved.
+- **Medium term:** **Inventory** the standalone Billing service's data, routes,
+  UI behavior, environment variables, and any useful code/docs — input to the
+  **Phase 29C** billing-service reconciliation — **before** any retirement/restrict
+  decision.
+- **Long term:** **Retire or restrict `:18180` only after** the Phase 29C
+  reconciliation, explicit approval, backup/export, validation that nothing
+  depends on it, and confirmation of the canonical billing service. The standalone
+  service is **preserved / potential canonical** until then — not legacy/dead.
 
 ## What Phase 29B explicitly does NOT do
 

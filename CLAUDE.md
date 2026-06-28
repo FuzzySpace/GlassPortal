@@ -20,29 +20,33 @@ own business state. Each capability has an owner module (see
 - **SIONA** — external module; tenant provisioning + signed/back-channel launch.
   Per-module signing secret via `GLASSPORTAL_MODULE_SECRET_SIONA`.
 
-## Repository consolidation (Phase 28A)
+## Repository consolidation (Phase 28A) + billing reconciliation pending (Phase 29C)
 
 See [`docs/architecture/repository-consolidation.md`](docs/architecture/repository-consolidation.md)
-and [`docs/phase28a/`](docs/phase28a/). The canonical-repo decision:
+and [`docs/phase28a/`](docs/phase28a/):
 
 - **`FuzzySpace/GlassPortal` is the canonical, active application repository.**
-  All current development happens here.
-- **GlassBilling active development lives inside GlassPortal** as a bounded module
-  — not in a separate codebase.
-- **Do not move billing code to the standalone `FuzzySpace/GlassBilling` repo**
-  unless a future, explicit extraction phase is approved (its own ADR).
-- **Do not blindly import old standalone `FuzzySpace/GlassBilling` repo code.**
-  If it is reviewed later, treat it strictly as **legacy / reference** (source-
-  control import + security review first).
+  All current development happens here; the active billing code lives here today.
+- **The GlassBilling-domain module lives inside GlassPortal** (Phases 24–28) as a
+  bounded module — the current active billing implementation.
+- **Standalone `FuzzySpace/GlassBilling` is NOT legacy/dead.** It is an existing
+  **billing/provisioning service designed to integrate with GlassPortal and
+  GlassPanel** — treat it as **preserved / reference / potential canonical
+  billing service**, pending the **Phase 29C architectural reconciliation** that
+  decides the long-term canonical billing service.
+- **Do not retire, archive, delete, or dismiss** the standalone GlassBilling repo;
+  **do not migrate its data or move its code** yet; **do not blindly import** it
+  (source-control import + security review first, pending 29C).
 - **Keep billing code namespaced and bounded** using the existing conventions:
   `config/billing.php`, `app/Services/Billing/*`, `app/Models/Billing*`,
   `billing_*` tables, `resources/views/admin/billing/*`,
   `resources/views/portal/billing/*`, `docs/billing` or `docs/phase*`, and
   billing-behavior tests.
 
-This is a repository-location decision only; it does not change billing behavior,
-the Stripe flow, the provisioning request engine, or customer billing
-self-service, and it leaves the standalone GlassBilling repo untouched.
+This is a repository-location decision plus a *pending* billing-service
+reconciliation (29C); it changes no billing behavior, the Stripe flow, the
+provisioning request engine, or customer billing self-service, and it leaves the
+standalone GlassBilling repo untouched.
 
 ## Dev & validation
 

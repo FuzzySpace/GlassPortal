@@ -11,6 +11,33 @@
   deleted in this phase. The standalone `FuzzySpace/GlassBilling` repository is
   not touched.**
 
+> ## ⚠️ Amendment (Phase 29B correction → Phase 29C reconciliation pending)
+>
+> After repository review, the standalone `FuzzySpace/GlassBilling` is **not**
+> "permanently legacy/dead." Corrected framing:
+>
+> - Standalone GlassBilling is an **existing billing / provisioning service
+>   designed to integrate with GlassPortal *and* GlassPanel.**
+> - Phases 24–28 implemented an **embedded GlassBilling-domain module inside
+>   GlassPortal** (the current active billing implementation).
+> - The platform therefore has an **architectural reconciliation task pending**:
+>   which is the canonical billing service — the embedded module, the standalone
+>   service, or a reconciled hybrid? **This is resolved in Phase 29C.**
+> - Until then, treat standalone GlassBilling as **preserved / reference /
+>   potential canonical billing service.** **Do not retire, archive, delete, or
+>   dismiss it; do not migrate data or move code yet.**
+>
+> Everywhere this ADR says "legacy / reference," read it as that corrected
+> status. What still holds: **GlassPortal hosts the active billing code today**
+> (a repository-*location* fact). What is now **open** (29C): the long-term
+> canonical billing/provisioning service.
+>
+> **⛔ Finalization gate:** do **not** finalize the GlassPortal / GlassBilling
+> architecture until the **SDK / API contract has been inventoried, compared, and
+> mapped** (Phase 29C, Track 2). Scoping +  gates:
+> [`billing-architecture-reconciliation.md`](./billing-architecture-reconciliation.md);
+> status: [`docs/state/phase-status.md`](../state/phase-status.md).
+
 ---
 
 ## Context
@@ -77,9 +104,13 @@ A one-paragraph decision now prevents a painful divergence later.
    separate codebase. It keeps clean domain boundaries (naming, services, config,
    routes, docs, tests) but ships in the GlassPortal repo and deploys with it.
 
-3. **The standalone `FuzzySpace/GlassBilling` repository is legacy / reference
-   only**, unless and until an explicit, approved future extraction phase revives
-   it. It is **not** the source of truth for the active billing code.
+3. **The standalone `FuzzySpace/GlassBilling` is a preserved / reference /
+   potential canonical billing service** (see the Amendment above) — an existing
+   billing/provisioning service designed to integrate with GlassPortal and
+   GlassPanel. It is **not** the *current* source of the active billing code
+   (that is the embedded module), and it is **not** legacy/dead. Its long-term
+   role is the **Phase 29C reconciliation**. Do not retire, archive, delete,
+   dismiss, migrate, or move it meanwhile.
 
 4. **Domain ownership is unchanged.** This ADR is about *repository location*,
    not about *who owns billing facts*. GlassBilling remains the billing domain
@@ -129,12 +160,14 @@ risk choice.**
   `FuzzySpace/GlassBilling` repo (or anywhere else).
 - **Do not split active development** across two repositories.
 - **Do not blindly import** code from the standalone `FuzzySpace/GlassBilling`
-  repo into GlassPortal. If it is reviewed later, treat it strictly as
-  **legacy / reference**, subject to source-control import + security review
-  (the same posture applied to the GHpanel / LXC 310 legacy stack).
-- **Do not delete, archive, rename, or otherwise mutate** the standalone
-  `FuzzySpace/GlassBilling` repository as part of this or any nearby phase. This
-  ADR only documents intent.
+  repo into GlassPortal. If it is reviewed later, treat it as **preserved /
+  reference / potential canonical** (pending Phase 29C), subject to source-control
+  import + security review before any reuse. (Review prudence, *not* a judgement
+  that it is dead.)
+- **Do not retire, archive, delete, dismiss, rename, or otherwise mutate** the
+  standalone `FuzzySpace/GlassBilling` repository, and **do not migrate its data
+  or move its code**, as part of this or any nearby phase. Its long-term role is
+  decided in Phase 29C. This ADR only documents intent.
 - **Do not rename billing namespaces** or relocate billing files to "prepare"
   for an extraction that has not been approved.
 

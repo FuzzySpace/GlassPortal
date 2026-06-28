@@ -1,10 +1,16 @@
-# Runbook — Runtime Consolidation (Legacy Billing ↔ GlassPortal)
+# Runbook — Runtime Consolidation (Standalone Billing ↔ GlassPortal)
 
 **Audience:** founder / operator.
-**Goal:** safely work toward a single canonical billing-capable runtime
-(GlassPortal `:18188`) without losing data or breaking dependencies on the legacy
-billing runtime (`:18180`).
+**Goal:** safely work toward a clear canonical billing-capable runtime without
+losing data or breaking dependencies on the **standalone billing runtime**
+(`:18180`).
 
+> **⚠️ Correction (29B→29C):** `:18180` is the **standalone GlassBilling service**
+> (integrates with GlassPortal + GlassPanel) — **preserved / potential canonical**
+> pending the Phase 29C reconciliation, **not** legacy/dead. "legacy" labels below
+> are historical descriptors of the `ghbilling-*` containers, not a retirement
+> judgement. Do not retire/migrate/move it.
+>
 > **Phase 29B does NOT execute any of Stage 3–5.** This runbook is the plan.
 > Stages 0–2 are **read-only / backup-only**. Any stop/restrict/redirect/remove
 > action is **future approved execution only** (see the fenced section at the

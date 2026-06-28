@@ -857,8 +857,9 @@ class GlassPortalHealthCheck extends Command
         // healthcheck and never prints secrets / never touches public URLs.
         foreach ([
             'architecture.runtime_consolidation_plan_doc'  => ['docs/architecture/runtime-consolidation-plan.md', 'Runtime consolidation plan (ADR)'],
-            'state.legacy_billing_runtime_inventory_doc'   => ['docs/state/legacy-billing-runtime-inventory.md', 'Legacy billing runtime inventory'],
+            'state.legacy_billing_runtime_inventory_doc'   => ['docs/state/legacy-billing-runtime-inventory.md', 'Standalone billing runtime inventory'],
             'runbook.runtime_consolidation_doc'            => ['docs/runbooks/runtime-consolidation.md', 'Runtime consolidation runbook'],
+            'architecture.billing_reconciliation_doc'      => ['docs/architecture/billing-architecture-reconciliation.md', 'Billing architecture reconciliation (29C; SDK/API parity gate)'],
         ] as $check => [$path, $label]) {
             try {
                 if (is_file(base_path($path))) {

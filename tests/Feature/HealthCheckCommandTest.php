@@ -331,4 +331,13 @@ class HealthCheckCommandTest extends TestCase
             ->expectsOutputToContain('runbook.runtime_consolidation_doc')
             ->assertExitCode(0);
     }
+
+    // Phase 29C — billing architecture reconciliation (SDK/API parity gate) doc check.
+
+    public function test_healthcheck_includes_billing_reconciliation_doc_check(): void
+    {
+        $this->artisan('glassportal:healthcheck')
+            ->expectsOutputToContain('architecture.billing_reconciliation_doc')
+            ->assertExitCode(0);
+    }
 }

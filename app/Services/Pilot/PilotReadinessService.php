@@ -165,28 +165,30 @@ class PilotReadinessService
 
         $items = [];
 
-        // (a) Which runtime is the operator actually on right now?
+        // (a) Which runtime is the operator actually on right now? The standalone
+        // billing runtime (:18180) is preserved / potential canonical (pending
+        // Phase 29C) — not the pilot target, and not legacy/dead.
         if ($legacyAuthority !== '' && in_array($legacyAuthority, $candidates, true)) {
             $items[] = PilotReadinessItem::warning('runtime.canonical_target', self::CAT_RUNTIME,
-                "You appear to be testing the LEGACY billing runtime ({$legacy}).",
+                "You appear to be on the standalone billing runtime ({$legacy}), not the canonical GlassPortal pilot target.",
                 "Use the canonical GlassPortal pilot target instead: {$canonical}.");
         } elseif ($canonicalAuthority !== '' && in_array($canonicalAuthority, $candidates, true)) {
             $items[] = PilotReadinessItem::ready('runtime.canonical_target', self::CAT_RUNTIME,
                 "On the canonical GlassPortal pilot target ({$canonical}).");
         } else {
             $items[] = PilotReadinessItem::ready('runtime.canonical_target', self::CAT_RUNTIME,
-                "Current runtime is not the legacy billing URL. Canonical pilot target is {$canonical}.");
+                "Current runtime is not the standalone billing URL. Canonical pilot target is {$canonical}.");
         }
 
-        // (b) Drift guard: the CONFIGURED pilot target must not be the legacy URL.
-        $targetIsLegacy = ($canonicalAuthority !== '' && $canonicalAuthority === $legacyAuthority)
+        // (b) Drift guard: the CONFIGURED pilot target must not be the standalone URL.
+        $targetIsStandalone = ($canonicalAuthority !== '' && $canonicalAuthority === $legacyAuthority)
             || str_contains($canonical, ':18180');
-        $items[] = $targetIsLegacy
+        $items[] = $targetIsStandalone
             ? PilotReadinessItem::warning('runtime.pilot_target_not_legacy', self::CAT_RUNTIME,
-                "The configured pilot target ({$canonical}) is the LEGACY billing URL.",
+                "The configured pilot target ({$canonical}) is the standalone billing URL, not GlassPortal.",
                 'Set PILOT_CANONICAL_URL to the GlassPortal URL (…:' . self::EXPECTED_CANONICAL_PORT . ').')
             : PilotReadinessItem::ready('runtime.pilot_target_not_legacy', self::CAT_RUNTIME,
-                'Configured pilot target is not the legacy billing URL.');
+                'Configured pilot target is not the standalone billing URL.');
 
         // (c) Drift guard: confirm the canonical pilot URL is the expected :18188.
         $port = self::EXPECTED_CANONICAL_PORT;
@@ -197,20 +199,20 @@ class PilotReadinessService
                 "Canonical pilot URL is not the expected :{$port} ({$canonical}).",
                 "Set PILOT_CANONICAL_URL to http://40.160.61.180:{$port}.");
 
-        // (d) Phase 29B: the legacy billing URL must be documented (consolidation input).
+        // (d) Phase 29B: the standalone billing URL must be documented (consolidation input).
         $items[] = $legacy !== ''
             ? PilotReadinessItem::ready('runtime.legacy_billing_url_documented', self::CAT_RUNTIME,
-                "Legacy billing URL is documented ({$legacy}).")
+                "Standalone billing URL is documented ({$legacy}).")
             : PilotReadinessItem::warning('runtime.legacy_billing_url_documented', self::CAT_RUNTIME,
-                'Legacy billing URL is not documented.',
+                'Standalone billing URL is not documented.',
                 'Set PILOT_LEGACY_BILLING_URL and document it in docs/state/legacy-billing-runtime-inventory.md.');
 
-        // (e) Phase 29B: canonical and legacy URLs must be distinct (two runtimes).
+        // (e) Phase 29B: canonical and standalone URLs must be distinct (two runtimes).
         $items[] = ($canonicalAuthority !== '' && $legacyAuthority !== '' && $canonicalAuthority !== $legacyAuthority)
             ? PilotReadinessItem::ready('runtime.canonical_and_legacy_urls_distinct', self::CAT_RUNTIME,
-                'Canonical and legacy runtime URLs are distinct.')
+                'Canonical and standalone runtime URLs are distinct.')
             : PilotReadinessItem::warning('runtime.canonical_and_legacy_urls_distinct', self::CAT_RUNTIME,
-                'Canonical and legacy runtime URLs are not distinct.',
+                'Canonical and standalone runtime URLs are not distinct.',
                 'They must differ — check PILOT_CANONICAL_URL / PILOT_LEGACY_BILLING_URL.');
 
         return $items;
@@ -463,8 +465,10 @@ class PilotReadinessService
             'state.repository_map_doc'                => ['docs/state/repository-map.md', 'Repository map'],
             // Phase 29B — runtime consolidation planning docs.
             'runtime.runtime_consolidation_plan_doc'  => ['docs/architecture/runtime-consolidation-plan.md', 'Runtime consolidation plan (ADR)'],
-            'runtime.legacy_billing_inventory_doc'    => ['docs/state/legacy-billing-runtime-inventory.md', 'Legacy billing runtime inventory'],
+            'runtime.legacy_billing_inventory_doc'    => ['docs/state/legacy-billing-runtime-inventory.md', 'Standalone billing runtime inventory'],
             'runtime.runtime_consolidation_runbook'   => ['docs/runbooks/runtime-consolidation.md', 'Runtime consolidation runbook'],
+            // Phase 29C — billing architecture reconciliation (SDK/API parity gate).
+            'state.billing_reconciliation_doc'        => ['docs/architecture/billing-architecture-reconciliation.md', 'Billing architecture reconciliation (29C; SDK/API parity gate)'],
         ];
 
         $items = [];

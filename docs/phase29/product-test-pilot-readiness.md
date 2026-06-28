@@ -45,12 +45,13 @@ restructuring (the Phase 28A consolidation decision is unchanged).
 ## Runtime target
 
 Pilot against the **canonical GlassPortal runtime — `http://40.160.61.180:18188`**.
-The standalone billing runtime at `http://40.160.61.180:18180` is **legacy /
-reference** and must not be used for the pilot. The full public/runtime mapping,
-container inventory, and the "what must not change" list are in
+The standalone billing runtime at `http://40.160.61.180:18180` is **preserved /
+reference / potential canonical (pending Phase 29C)** — **not** legacy/dead — and
+must not be used for the pilot. The full public/runtime mapping, container
+inventory, and the "what must not change" list are in
 [`runtime-exposure-inventory.md`](./runtime-exposure-inventory.md). The readiness
 checks emit a **warning** (`runtime.canonical_target`) if you appear to be on the
-legacy URL.
+standalone URL.
 
 ## Test prerequisites
 

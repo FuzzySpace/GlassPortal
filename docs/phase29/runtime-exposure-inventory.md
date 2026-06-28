@@ -9,6 +9,13 @@ billing runtime instead.
 > public port mapping changed, no host NAT / Traefik / Nginx touched, no data
 > migrated, no databases merged, and `:18180` is **not** redirected to `:18188`.
 > Those are explicitly deferred to a later, approved runtime-consolidation phase.
+>
+> **⚠️ Correction (Phase 29B → 29C).** `:18180` is the **standalone GlassBilling
+> service** (integrates with GlassPortal + GlassPanel) — **preserved / potential
+> canonical** pending the Phase 29C reconciliation, **not** legacy/dead. Below,
+> "legacy" descriptors are historical; read them as "standalone / preserved /
+> potential canonical." `:18188` is the canonical *pilot* target; `:18180` is not
+> the pilot target but is preserved (do not retire/migrate/move).
 
 ---
 
@@ -23,14 +30,17 @@ billing runtime instead.
 | **Repo** | `FuzzySpace/GlassPortal` (canonical — see Phase 28A) | the standalone billing runtime (legacy) |
 
 **Pilot target:** `http://40.160.61.180:18188`.
-**Treat `http://40.160.61.180:18180` as legacy/reference** until a later approved
-runtime consolidation phase.
+**Treat `http://40.160.61.180:18180` as the preserved standalone billing service
+(potential canonical, pending Phase 29C)** — not the pilot target, but not
+legacy/dead — until a later approved runtime-consolidation/reconciliation phase.
 
 This is consistent with the Phase 28A decision
-([`docs/architecture/repository-consolidation.md`](../architecture/repository-consolidation.md)):
-GlassPortal is the canonical active application and GlassBilling is a bounded
-module *inside* it. The standalone billing **runtime** is the deployment-side
-counterpart of the standalone billing **repo** — both are legacy/reference.
+([`docs/architecture/repository-consolidation.md`](../architecture/repository-consolidation.md))
+**as corrected in Phase 29B**: GlassPortal hosts the active application/billing
+code today, with an embedded GlassBilling-domain module. The standalone billing
+**runtime** (`:18180`) is the deployment-side counterpart of the standalone
+billing **service/repo** — both are **preserved / reference / potential
+canonical**, pending the Phase 29C billing-service reconciliation.
 
 ## Known container mapping (host `lxc-gh-glassbilling-pr2-01`)
 

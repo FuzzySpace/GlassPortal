@@ -153,8 +153,8 @@ class PilotReadinessServiceTest extends TestCase
 
         $item = $this->itemsByKey()['runtime.canonical_target'];
         $this->assertSame(PilotReadinessItem::WARNING, $item->status);
-        $this->assertStringContainsStringIgnoringCase('legacy', $item->message);
-        // A legacy-URL warning never blocks the pilot.
+        $this->assertStringContainsStringIgnoringCase('standalone', $item->message);
+        // A standalone-URL warning never blocks the pilot.
         $this->assertFalse($item->isBlocked());
     }
 
@@ -188,11 +188,11 @@ class PilotReadinessServiceTest extends TestCase
         // Default canonical (:18188) is not the legacy URL → ready.
         $this->assertSame(PilotReadinessItem::READY, $this->itemsByKey()['runtime.pilot_target_not_legacy']->status);
 
-        // Misconfiguring the pilot target to the legacy billing URL → warning.
+        // Misconfiguring the pilot target to the standalone billing URL → warning.
         config(['pilot.canonical_url' => config('pilot.legacy_billing_url')]);
         $item = $this->itemsByKey()['runtime.pilot_target_not_legacy'];
         $this->assertSame(PilotReadinessItem::WARNING, $item->status);
-        $this->assertStringContainsStringIgnoringCase('legacy', $item->message);
+        $this->assertStringContainsStringIgnoringCase('standalone', $item->message);
     }
 
     public function test_pilot_target_warns_when_canonical_uses_legacy_port(): void
@@ -259,6 +259,12 @@ class PilotReadinessServiceTest extends TestCase
         $this->assertSame(PilotReadinessItem::READY, $items['runtime.runtime_consolidation_plan_doc']->status);
         $this->assertSame(PilotReadinessItem::READY, $items['runtime.legacy_billing_inventory_doc']->status);
         $this->assertSame(PilotReadinessItem::READY, $items['runtime.runtime_consolidation_runbook']->status);
+    }
+
+    public function test_billing_reconciliation_doc_present(): void
+    {
+        // Phase 29C scoping doc with the SDK/API-parity finalization gate.
+        $this->assertSame(PilotReadinessItem::READY, $this->itemsByKey()['state.billing_reconciliation_doc']->status);
     }
 
     public function test_29b_advisory_checks_never_block_pilot(): void
