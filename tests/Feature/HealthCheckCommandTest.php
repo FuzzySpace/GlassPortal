@@ -287,4 +287,37 @@ class HealthCheckCommandTest extends TestCase
             ->expectsOutputToContain('billing.self_service_routes')
             ->assertExitCode(0);
     }
+
+    // Phase 29 — pilot/product-test readiness machinery checks.
+
+    public function test_healthcheck_includes_pilot_readiness_checks_and_exits_zero(): void
+    {
+        // Machinery checks pass regardless of whether a product is seeded.
+        $this->artisan('glassportal:healthcheck')
+            ->expectsOutputToContain('pilot.readiness_service')
+            ->expectsOutputToContain('pilot.readiness_command')
+            ->expectsOutputToContain('pilot.admin_route')
+            ->expectsOutputToContain('pilot.readiness_doc')
+            ->expectsOutputToContain('pilot.no_infrastructure_execution')
+            ->assertExitCode(0);
+    }
+
+    public function test_healthcheck_pilot_checks_never_print_secret(): void
+    {
+        $secret = 'sk_live_pilot_hc_secret_MUST_NOT_PRINT';
+        $whsec  = 'whsec_pilot_hc_secret_MUST_NOT_PRINT';
+        config([
+            'billing.enabled'               => true,
+            'billing.mode'                  => 'stripe',
+            'billing.stripe.secret_key'     => $secret,
+            'billing.stripe.webhook_secret' => $whsec,
+            'billing.checkout.enabled'      => true,
+            'billing.webhooks.enabled'      => true,
+        ]);
+
+        $this->artisan('glassportal:healthcheck')
+            ->doesntExpectOutputToContain($secret)
+            ->doesntExpectOutputToContain($whsec)
+            ->assertExitCode(0);
+    }
 }

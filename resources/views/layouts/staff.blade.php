@@ -175,6 +175,11 @@
             </a>
 
             <div class="nav-section">System</div>
+            @if(auth()->user()->isAdmin())
+            <a href="{{ route('admin.pilot-readiness') }}" class="{{ str_starts_with($route, 'admin.pilot-readiness') ? 'active' : '' }}">
+                <span class="icon">◎</span> Pilot Readiness
+            </a>
+            @endif
             <a href="{{ route('admin.modules') }}" class="{{ str_starts_with($route, 'admin.modules') && !str_starts_with($route, 'admin.module-links') ? 'active' : '' }}">
                 <span class="icon">⊛</span> Modules
             </a>

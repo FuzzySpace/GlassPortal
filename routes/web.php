@@ -5,6 +5,7 @@ use App\Http\Controllers\Admin\CustomersController;
 use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\ModuleLinksController;
 use App\Http\Controllers\Admin\ModulesController;
+use App\Http\Controllers\Admin\PilotReadinessController;
 use App\Http\Controllers\Admin\ProvisioningController;
 use App\Http\Controllers\Admin\ServicesController;
 use App\Http\Controllers\Admin\Billing\BillingController;
@@ -93,6 +94,13 @@ Route::middleware(['auth', 'role:owner,admin,staff,support'])
     ->name('admin.')
     ->group(function () {
         Route::get('/',                          [DashboardController::class,    'index'])->name('dashboard');
+
+        // Phase 29: pilot/product-test readiness (read-only operator page).
+        // Owner/admin only — the stacked role middleware narrows the staff group.
+        Route::get('/pilot-readiness',           [PilotReadinessController::class, 'index'])
+            ->middleware('role:owner,admin')
+            ->name('pilot-readiness');
+
         Route::get('/modules',                   [ModulesController::class,      'index'])->name('modules');
 
         // Module link CRUD (except show — detail not needed; index covers it)
