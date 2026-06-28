@@ -3,23 +3,126 @@
 namespace App\Http\Controllers\Portal;
 
 use App\Http\Controllers\Controller;
+use App\Models\BillingCheckoutSession;
+use App\Models\BillingInvoice;
 use App\Models\BillingPlan;
+use App\Models\BillingSubscription;
+use App\Services\Billing\BillingSelfServiceService;
 use App\Services\Billing\StripeCheckoutService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
 /**
- * Customer-facing checkout start flow (Phase 27).
+ * Customer-facing billing self-service (Phase 28) + checkout start (Phase 27).
  *
- * Lists active plans and starts a Stripe Checkout session. It never creates
- * billing/entitlement/provisioning records directly — those are driven by the
- * verified webhook after Stripe confirms payment. Stripe secrets are never
- * exposed.
+ * Strictly read-/request-only and scoped to the signed-in customer's billing
+ * customers (their organization + themselves). A customer can never see another
+ * organization's records, can never mutate billing/entitlement/provisioning
+ * state, and is never shown raw provider payloads or secrets.
  */
 class BillingController extends Controller
 {
-    public function __construct(private StripeCheckoutService $checkout) {}
+    public function __construct(
+        private StripeCheckoutService $checkout,
+        private BillingSelfServiceService $self,
+    ) {}
+
+    // -------------------------------------------------------------------------
+    // Dashboard
+
+    public function dashboard(Request $request): View
+    {
+        return view('portal.billing.dashboard', [
+            'data' => $this->self->dashboard($request->user()),
+        ]);
+    }
+
+    // -------------------------------------------------------------------------
+    // Subscriptions
+
+    public function subscriptions(Request $request): View
+    {
+        return view('portal.billing.subscriptions', [
+            'subscriptions' => $this->self->subscriptionsQuery($request->user())
+                ->orderByDesc('created_at')
+                ->paginate(20),
+        ]);
+    }
+
+    public function subscriptionShow(Request $request, BillingSubscription $subscription): View
+    {
+        abort_unless($this->self->ownsSubscription($request->user(), $subscription), 404);
+
+        $subscription->load(['plan.product', 'customer', 'serviceEntitlements', 'changeRequests']);
+
+        // Related invoices via the same billing customer, read-only.
+        $invoices = BillingInvoice::where('billing_customer_id', $subscription->billing_customer_id)
+            ->orderByDesc('created_at')->limit(20)->get();
+
+        return view('portal.billing.subscription-detail', [
+            'subscription' => $subscription,
+            'invoices'     => $invoices,
+        ]);
+    }
+
+    // -------------------------------------------------------------------------
+    // Invoices
+
+    public function invoices(Request $request): View
+    {
+        return view('portal.billing.invoices', [
+            'invoices' => $this->self->invoicesQuery($request->user())
+                ->orderByDesc('created_at')
+                ->paginate(20),
+        ]);
+    }
+
+    public function invoiceShow(Request $request, BillingInvoice $invoice): View
+    {
+        abort_unless($this->self->ownsInvoice($request->user(), $invoice), 404);
+
+        $invoice->load(['customer', 'payments']);
+
+        return view('portal.billing.invoice-detail', ['invoice' => $invoice]);
+    }
+
+    // -------------------------------------------------------------------------
+    // Payments
+
+    public function payments(Request $request): View
+    {
+        return view('portal.billing.payments', [
+            'payments'       => $this->self->paymentsQuery($request->user())
+                ->orderByDesc('created_at')
+                ->paginate(20),
+            'paymentMethods' => $this->self->paymentMethods($request->user()),
+        ]);
+    }
+
+    // -------------------------------------------------------------------------
+    // Checkout session history
+
+    public function checkoutSessions(Request $request): View
+    {
+        return view('portal.billing.checkout-sessions', [
+            'sessions' => $this->self->checkoutSessionsQuery($request->user())
+                ->orderByDesc('created_at')
+                ->paginate(20),
+        ]);
+    }
+
+    public function checkoutSessionShow(Request $request, BillingCheckoutSession $checkoutSession): View
+    {
+        abort_unless($this->self->ownsCheckoutSession($request->user(), $checkoutSession), 404);
+
+        $checkoutSession->load(['plan', 'product', 'subscription']);
+
+        return view('portal.billing.checkout-session-detail', ['session' => $checkoutSession]);
+    }
+
+    // -------------------------------------------------------------------------
+    // Plans + checkout start (Phase 27)
 
     public function plans(): View
     {

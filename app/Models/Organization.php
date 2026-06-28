@@ -53,6 +53,11 @@ class Organization extends Model
         return $this->hasMany(BillingCheckoutSession::class);
     }
 
+    public function billingChangeRequests(): HasMany
+    {
+        return $this->hasMany(BillingChangeRequest::class);
+    }
+
     public function isActive(): bool
     {
         return $this->status === 'active';

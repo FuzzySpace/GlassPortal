@@ -258,4 +258,17 @@ class HealthCheckCommandTest extends TestCase
             ->doesntExpectOutputToContain($whsec)
             ->assertExitCode(0);
     }
+
+    // Phase 28 — customer billing self-service checks.
+
+    public function test_healthcheck_includes_self_service_checks_and_exits_zero(): void
+    {
+        $this->artisan('glassportal:healthcheck')
+            ->expectsOutputToContain('billing.change_requests_table')
+            ->expectsOutputToContain('billing.change_request_model')
+            ->expectsOutputToContain('billing.self_service_controller')
+            ->expectsOutputToContain('billing.change_request_workflow')
+            ->expectsOutputToContain('billing.self_service_routes')
+            ->assertExitCode(0);
+    }
 }

@@ -8,6 +8,7 @@ use App\Http\Controllers\Admin\ModulesController;
 use App\Http\Controllers\Admin\ProvisioningController;
 use App\Http\Controllers\Admin\ServicesController;
 use App\Http\Controllers\Admin\Billing\BillingController;
+use App\Http\Controllers\Admin\Billing\ChangeRequestController as AdminBillingChangeRequestController;
 use App\Http\Controllers\Admin\Billing\EntitlementController;
 use App\Http\Controllers\Admin\Provisioning\RequestController as ProvisioningRequestController;
 use App\Http\Controllers\Admin\Site\CatalogController;
@@ -17,6 +18,7 @@ use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Dev\SsoConsumeController;
 use App\Http\Controllers\GlassSite\PublicCatalogController;
 use App\Http\Controllers\Portal\BillingController as PortalBillingController;
+use App\Http\Controllers\Portal\BillingChangeRequestController as PortalBillingChangeRequestController;
 use App\Http\Controllers\Portal\DashboardController as PortalDashboardController;
 use App\Http\Controllers\Portal\EntitlementsController as PortalEntitlementsController;
 use App\Http\Controllers\Portal\ModuleLaunchController;
@@ -159,6 +161,14 @@ Route::middleware(['auth', 'role:owner,admin,staff,support'])
                 Route::post('/entitlements/{entitlement}/{action}', [EntitlementController::class, 'action'])
                     ->where('action', 'suspend|reactivate|cancel|terminate|provisioning-pending|provisioning-failed')
                     ->name('entitlements.action');
+
+                // Phase 28: customer billing change requests — review workflow only
+                // (no Stripe/subscription/infrastructure mutation).
+                Route::get('/change-requests',                  [AdminBillingChangeRequestController::class, 'index'])->name('change-requests');
+                Route::get('/change-requests/{changeRequest}',  [AdminBillingChangeRequestController::class, 'show'])->name('change-requests.show');
+                Route::post('/change-requests/{changeRequest}/{action}', [AdminBillingChangeRequestController::class, 'action'])
+                    ->where('action', 'under-review|approve|reject|complete|cancel')
+                    ->name('change-requests.action');
             });
 
         // Phase 22: GlassSite public catalog management — owner/admin only.
@@ -194,9 +204,36 @@ Route::middleware(['auth', 'role:customer'])
         Route::get('/entitlements', [PortalEntitlementsController::class, 'index'])->name('entitlements');
         Route::get('/provisioning', [PortalProvisioningController::class, 'index'])->name('provisioning');
 
-        // Phase 27: customer checkout start (redirects to Stripe Checkout).
-        Route::get('/billing/plans',                  [PortalBillingController::class, 'plans'])->name('billing.plans');
-        Route::post('/billing/checkout/plans/{plan}', [PortalBillingController::class, 'checkout'])->name('billing.checkout');
+        // Phase 28: customer billing self-service (read-/request-only) + Phase 27
+        // checkout start. All strictly scoped to the customer's billing records.
+        Route::prefix('billing')
+            ->name('billing.')
+            ->group(function () {
+                Route::get('/',                                    [PortalBillingController::class, 'dashboard'])->name('dashboard');
+
+                Route::get('/subscriptions',                       [PortalBillingController::class, 'subscriptions'])->name('subscriptions');
+                Route::get('/subscriptions/{subscription}',        [PortalBillingController::class, 'subscriptionShow'])->name('subscriptions.show');
+
+                Route::get('/invoices',                            [PortalBillingController::class, 'invoices'])->name('invoices');
+                Route::get('/invoices/{invoice}',                  [PortalBillingController::class, 'invoiceShow'])->name('invoices.show');
+
+                Route::get('/payments',                            [PortalBillingController::class, 'payments'])->name('payments');
+
+                Route::get('/checkout-sessions',                   [PortalBillingController::class, 'checkoutSessions'])->name('checkout-sessions');
+                Route::get('/checkout-sessions/{checkoutSession}', [PortalBillingController::class, 'checkoutSessionShow'])->name('checkout-sessions.show');
+
+                // Phase 27: plans + checkout start (redirects to Stripe Checkout).
+                Route::get('/plans',                               [PortalBillingController::class, 'plans'])->name('plans');
+                Route::post('/checkout/plans/{plan}',              [PortalBillingController::class, 'checkout'])->name('checkout');
+
+                // Billing change requests — workflow records only. Register the
+                // static /create before the {changeRequest} wildcard.
+                Route::get('/change-requests',                     [PortalBillingChangeRequestController::class, 'index'])->name('change-requests');
+                Route::get('/change-requests/create',              [PortalBillingChangeRequestController::class, 'create'])->name('change-requests.create');
+                Route::post('/change-requests',                    [PortalBillingChangeRequestController::class, 'store'])->name('change-requests.store');
+                Route::get('/change-requests/{changeRequest}',     [PortalBillingChangeRequestController::class, 'show'])->name('change-requests.show');
+                Route::post('/change-requests/{changeRequest}/cancel', [PortalBillingChangeRequestController::class, 'cancel'])->name('change-requests.cancel');
+            });
 
         Route::get('/modules',      [PortalModulesController::class,   'index'])->name('modules');
         Route::get('/support',      [SupportController::class,         'index'])->name('support');
