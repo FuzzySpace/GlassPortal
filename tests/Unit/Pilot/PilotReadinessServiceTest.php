@@ -181,6 +181,55 @@ class PilotReadinessServiceTest extends TestCase
         $this->assertNotSame('', $item->message);
     }
 
+    // --- Phase 29 safeguard addendum: config + state drift guards -----------
+
+    public function test_pilot_target_ready_by_default_and_warns_when_set_to_legacy(): void
+    {
+        // Default canonical (:18188) is not the legacy URL → ready.
+        $this->assertSame(PilotReadinessItem::READY, $this->itemsByKey()['runtime.pilot_target_not_legacy']->status);
+
+        // Misconfiguring the pilot target to the legacy billing URL → warning.
+        config(['pilot.canonical_url' => config('pilot.legacy_billing_url')]);
+        $item = $this->itemsByKey()['runtime.pilot_target_not_legacy'];
+        $this->assertSame(PilotReadinessItem::WARNING, $item->status);
+        $this->assertStringContainsStringIgnoringCase('legacy', $item->message);
+    }
+
+    public function test_pilot_target_warns_when_canonical_uses_legacy_port(): void
+    {
+        config(['pilot.canonical_url' => 'http://40.160.61.180:18180']);
+        $this->assertSame(PilotReadinessItem::WARNING, $this->itemsByKey()['runtime.pilot_target_not_legacy']->status);
+    }
+
+    public function test_canonical_url_confirms_expected_port_18188(): void
+    {
+        // Default canonical URL is :18188 → ready.
+        $this->assertSame(PilotReadinessItem::READY, $this->itemsByKey()['runtime.canonical_url']->status);
+
+        // A canonical URL on an unexpected port → warning.
+        config(['pilot.canonical_url' => 'http://40.160.61.180:9999']);
+        $this->assertSame(PilotReadinessItem::WARNING, $this->itemsByKey()['runtime.canonical_url']->status);
+    }
+
+    public function test_state_docs_are_present(): void
+    {
+        $items = $this->itemsByKey();
+
+        $this->assertSame(PilotReadinessItem::READY, $items['state.repository_consolidation_doc']->status);
+        $this->assertSame(PilotReadinessItem::READY, $items['state.runtime_map_doc']->status);
+        $this->assertSame(PilotReadinessItem::READY, $items['state.repository_map_doc']->status);
+    }
+
+    public function test_state_drift_guard_warnings_do_not_block_pilot(): void
+    {
+        // Even fully misconfigured to the legacy URL, these are warnings, not blockers.
+        config(['pilot.canonical_url' => config('pilot.legacy_billing_url')]);
+
+        foreach (['runtime.pilot_target_not_legacy', 'runtime.canonical_url'] as $key) {
+            $this->assertFalse($this->itemsByKey()[$key]->isBlocked());
+        }
+    }
+
     public function test_never_exposes_secret_values(): void
     {
         $secret = 'sk_live_PILOT_SECRET_MUST_NOT_LEAK';

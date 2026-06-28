@@ -1,0 +1,54 @@
+# State — Runtime Map
+
+> **Drift anchor.** A concise, authoritative snapshot of the current runtime
+> reality, kept under `docs/state/` so operators and AI workers can confirm the
+> world before changing code. If this conflicts with what you observe, **stop and
+> reconcile** — do not assume. Fuller detail:
+> [`docs/phase29/runtime-exposure-inventory.md`](../phase29/runtime-exposure-inventory.md).
+>
+> Last reviewed: Phase 29 (safeguard addendum). This file documents reality; it
+> changes no infrastructure.
+
+## Public URLs
+
+| Role | URL | Notes |
+|---|---|---|
+| **Canonical pilot target** | **http://40.160.61.180:18188** | GlassPortal. **Test here.** Login at `/login`. |
+| Legacy / reference | http://40.160.61.180:18180 | Standalone billing runtime. Reference only — **do not pilot here.** |
+
+- **Pilot target = `:18188`.** The readiness checks warn if the configured pilot
+  target is the legacy `:18180`, or if the canonical URL is not `:18188`.
+
+## Internal container mapping (host `lxc-gh-glassbilling-pr2-01`)
+
+| Container | Port | Role |
+|---|---|---|
+| `glassportal-source-app-1` | 8088 | **Canonical GlassPortal app** (backs `:18188`) |
+| `ghbilling-billing-1` | 8080 | Legacy billing API |
+| `ghbilling-portal-1` | 3000 | Legacy billing portal/UI (backs `:18180`) |
+| `ghbilling-postgres-1` | 5432 (local) | Legacy billing database |
+| `ghbilling-redis-1` | 6379 (local) | Legacy cache/queue |
+| `ghbilling-mailhog-1` | 1025 / 8025 | Legacy mail catcher |
+
+## Current public port assumptions
+
+- `:18188` → `glassportal-source-app-1:8088` (canonical GlassPortal).
+- `:18180` → `ghbilling-portal-1:3000` (legacy billing portal).
+- Local-only ports (`5432`, `6379`, `1025/8025`) are **not** publicly exposed.
+- Host NAT / Traefik / Nginx own these mappings and are **out of scope** here.
+
+## Systems NOT to modify during Phase 29
+
+- Do **not** stop any container (the legacy `ghbilling-*` stack stays running).
+- Do **not** change public port mappings (`:18188`, `:18180`).
+- Do **not** modify host NAT, Traefik, or Nginx.
+- Do **not** migrate data between the legacy billing runtime and GlassPortal.
+- Do **not** merge databases (`ghbilling-postgres-1` is untouched).
+- Do **not** redirect `:18180` → `:18188` (deferred to a future approved phase).
+
+## Known unresolved
+
+**Runtime consolidation is pending.** Two runtimes (`:18188` canonical, `:18180`
+legacy) coexist by design until a later approved phase decides on
+redirect/retire/decommission. Until then: pilot on `:18188`, reference only on
+`:18180`.

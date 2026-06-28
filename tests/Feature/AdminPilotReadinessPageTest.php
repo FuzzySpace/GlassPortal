@@ -49,6 +49,25 @@ class AdminPilotReadinessPageTest extends TestCase
             ->assertSee(route('admin.billing.products'));
     }
 
+    public function test_page_shows_state_drift_guard_category(): void
+    {
+        $this->actingAs($this->user(UserRole::Admin->value))
+            ->get('/admin/pilot-readiness')
+            ->assertStatus(200)
+            ->assertSeeText('State & drift-guard readiness')
+            ->assertSeeText('Repository consolidation ADR present');
+    }
+
+    public function test_page_warns_when_pilot_target_is_legacy_url(): void
+    {
+        config(['pilot.canonical_url' => config('pilot.legacy_billing_url')]);
+
+        $this->actingAs($this->user(UserRole::Admin->value))
+            ->get('/admin/pilot-readiness')
+            ->assertStatus(200)
+            ->assertSeeText('is the LEGACY billing URL');
+    }
+
     public function test_page_warns_when_on_legacy_billing_url(): void
     {
         // Simulate the app being reached via the legacy billing runtime URL.

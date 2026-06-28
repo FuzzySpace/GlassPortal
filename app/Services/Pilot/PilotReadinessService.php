@@ -34,6 +34,10 @@ class PilotReadinessService
     public const CAT_ADMIN          = 'Admin workflow readiness';
     public const CAT_DOCS           = 'Documentation readiness';
     public const CAT_SECURITY       = 'Security boundary readiness';
+    public const CAT_STATE          = 'State & drift-guard readiness';
+
+    /** The canonical pilot URL is expected to be served on this public port. */
+    private const EXPECTED_CANONICAL_PORT = '18188';
 
     /**
      * Every readiness item, in category order.
@@ -56,6 +60,7 @@ class PilotReadinessService
             $this->adminItems(),
             $this->docsItems(),
             $this->securityItems(),
+            $this->stateItems(),
         );
     }
 
@@ -158,19 +163,41 @@ class PilotReadinessService
         $legacyAuthority  = $this->authority($legacy);
         $canonicalAuthority = $this->authority($canonical);
 
+        $items = [];
+
+        // (a) Which runtime is the operator actually on right now?
         if ($legacyAuthority !== '' && in_array($legacyAuthority, $candidates, true)) {
-            return [PilotReadinessItem::warning('runtime.canonical_target', self::CAT_RUNTIME,
+            $items[] = PilotReadinessItem::warning('runtime.canonical_target', self::CAT_RUNTIME,
                 "You appear to be testing the LEGACY billing runtime ({$legacy}).",
-                "Use the canonical GlassPortal pilot target instead: {$canonical}.")];
+                "Use the canonical GlassPortal pilot target instead: {$canonical}.");
+        } elseif ($canonicalAuthority !== '' && in_array($canonicalAuthority, $candidates, true)) {
+            $items[] = PilotReadinessItem::ready('runtime.canonical_target', self::CAT_RUNTIME,
+                "On the canonical GlassPortal pilot target ({$canonical}).");
+        } else {
+            $items[] = PilotReadinessItem::ready('runtime.canonical_target', self::CAT_RUNTIME,
+                "Current runtime is not the legacy billing URL. Canonical pilot target is {$canonical}.");
         }
 
-        if ($canonicalAuthority !== '' && in_array($canonicalAuthority, $candidates, true)) {
-            return [PilotReadinessItem::ready('runtime.canonical_target', self::CAT_RUNTIME,
-                "On the canonical GlassPortal pilot target ({$canonical}).")];
-        }
+        // (b) Drift guard: the CONFIGURED pilot target must not be the legacy URL.
+        $targetIsLegacy = ($canonicalAuthority !== '' && $canonicalAuthority === $legacyAuthority)
+            || str_contains($canonical, ':18180');
+        $items[] = $targetIsLegacy
+            ? PilotReadinessItem::warning('runtime.pilot_target_not_legacy', self::CAT_RUNTIME,
+                "The configured pilot target ({$canonical}) is the LEGACY billing URL.",
+                'Set PILOT_CANONICAL_URL to the GlassPortal URL (…:' . self::EXPECTED_CANONICAL_PORT . ').')
+            : PilotReadinessItem::ready('runtime.pilot_target_not_legacy', self::CAT_RUNTIME,
+                'Configured pilot target is not the legacy billing URL.');
 
-        return [PilotReadinessItem::ready('runtime.canonical_target', self::CAT_RUNTIME,
-            "Current runtime is not the legacy billing URL. Canonical pilot target is {$canonical}.")];
+        // (c) Drift guard: confirm the canonical pilot URL is the expected :18188.
+        $port = self::EXPECTED_CANONICAL_PORT;
+        $items[] = (str_contains($canonicalAuthority, ':' . $port) || str_contains($canonical, ':' . $port))
+            ? PilotReadinessItem::ready('runtime.canonical_url', self::CAT_RUNTIME,
+                "Canonical pilot URL is :{$port} as expected ({$canonical}).")
+            : PilotReadinessItem::warning('runtime.canonical_url', self::CAT_RUNTIME,
+                "Canonical pilot URL is not the expected :{$port} ({$canonical}).",
+                "Set PILOT_CANONICAL_URL to http://40.160.61.180:{$port}.");
+
+        return $items;
     }
 
     /** @return list<PilotReadinessItem> */
@@ -402,6 +429,30 @@ class PilotReadinessService
 
         $items[] = PilotReadinessItem::ready('security.no_secret_exposure', self::CAT_SECURITY,
             'Readiness reports presence booleans only; no secret values are returned or printed.');
+
+        return $items;
+    }
+
+    /**
+     * Drift guard: the state/decision docs that keep repository + runtime reality
+     * aligned must exist. Advisory (warning) if a doc is missing.
+     *
+     * @return list<PilotReadinessItem>
+     */
+    private function stateItems(): array
+    {
+        $docs = [
+            'state.repository_consolidation_doc' => ['docs/architecture/repository-consolidation.md', 'Repository consolidation ADR'],
+            'state.runtime_map_doc'              => ['docs/state/runtime-map.md', 'Runtime map'],
+            'state.repository_map_doc'           => ['docs/state/repository-map.md', 'Repository map'],
+        ];
+
+        $items = [];
+        foreach ($docs as $key => [$path, $label]) {
+            $items[] = is_file(base_path($path))
+                ? PilotReadinessItem::ready($key, self::CAT_STATE, "{$label} present ({$path}).")
+                : PilotReadinessItem::warning($key, self::CAT_STATE, "{$label} missing.", "Add {$path}.");
+        }
 
         return $items;
     }
