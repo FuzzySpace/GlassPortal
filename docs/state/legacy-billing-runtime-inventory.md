@@ -1,0 +1,63 @@
+# State — Legacy Billing Runtime Inventory
+
+> **Drift anchor + consolidation input.** What is *known* about the legacy
+> standalone Billing runtime, and what is *unknown* and must be verified by an
+> operator before any retirement. Documentation only — **the legacy runtime is
+> not modified, stopped, or retired in Phase 29B.** Plan:
+> [`docs/architecture/runtime-consolidation-plan.md`](../architecture/runtime-consolidation-plan.md);
+> runbook: [`docs/runbooks/runtime-consolidation.md`](../runbooks/runtime-consolidation.md).
+> Last reviewed: Phase 29B.
+
+## Status
+
+**Legacy / reference runtime — DO NOT RETIRE YET.** Online and public on
+`:18180`. Retirement/restriction is pending the staged plan + explicit approval.
+
+## Known inventory
+
+| Item | Value |
+|---|---|
+| Public URL | http://40.160.61.180:18180/login |
+| Internal billing container | `ghbilling-billing-1` |
+| Exposed internal port (billing API) | 8080 |
+| Associated frontend | `ghbilling-portal-1` on 3000 |
+| Associated Postgres | `ghbilling-postgres-1` (local 5432) |
+| Associated Redis | `ghbilling-redis-1` (local 6379) |
+| Associated Mailhog | `ghbilling-mailhog-1` (1025 / 8025) |
+| Compose project | `ghbilling` |
+| Repo/path clue | `/var/www/html/dev/GHbilling/docker-compose.dev.yml` |
+
+(The canonical GlassPortal runtime, for contrast, is `glassportal-source-app-1`
+on `8088` → public `:18188`, compose project `glassportal-source`. See
+[`runtime-map.md`](./runtime-map.md).)
+
+## Unknowns requiring manual / operator verification
+
+These are **not** answered in this phase and must be checked before any Stage 3+
+decision:
+
+- [ ] Does it contain **useful customer records**?
+- [ ] Does it contain **useful product definitions**?
+- [ ] Does it have **Stripe / test configuration** worth preserving?
+- [ ] Do any **browser bookmarks or team habits** point to `:18180`?
+- [ ] Does anything **external link** to it?
+- [ ] Must any **data be exported before shutdown**?
+- [ ] Is the **frontend on `:3000`** (`ghbilling-portal-1`) still needed?
+
+Until every box above is checked and recorded, the legacy runtime stays online.
+
+## How these get answered (pointer)
+
+Work the unknowns via the runbook:
+- **Stage 0** (no-change inventory) — confirm projects/containers/URLs; capture
+  table *names only*, env *key names only*, volumes, compose files.
+- **Stage 1** (preservation) — backup the DB + export schema/metadata *if
+  approved* before anything else.
+- **Stage 2** (dependency check) — bookmarks/docs/scripts, DNS/proxy refs, usage,
+  access logs; confirm no pilot workflow depends on `:18180`.
+
+## Boundaries
+
+This document records inventory and open questions only. It does **not** authorize
+or perform any change to the `ghbilling` runtime, its containers, volumes,
+database, or network exposure.

@@ -230,6 +230,53 @@ class PilotReadinessServiceTest extends TestCase
         }
     }
 
+    // --- Phase 29B: runtime consolidation advisory checks ------------------
+
+    public function test_legacy_billing_url_documented(): void
+    {
+        // Documented by default (config/pilot.php) → ready.
+        $this->assertSame(PilotReadinessItem::READY, $this->itemsByKey()['runtime.legacy_billing_url_documented']->status);
+
+        config(['pilot.legacy_billing_url' => '']);
+        $this->assertSame(PilotReadinessItem::WARNING, $this->itemsByKey()['runtime.legacy_billing_url_documented']->status);
+    }
+
+    public function test_canonical_and_legacy_urls_distinct(): void
+    {
+        // Distinct by default → ready.
+        $item = $this->itemsByKey()['runtime.canonical_and_legacy_urls_distinct'];
+        $this->assertSame(PilotReadinessItem::READY, $item->status);
+
+        // If they collapse to the same authority → warning.
+        config(['pilot.canonical_url' => config('pilot.legacy_billing_url')]);
+        $this->assertSame(PilotReadinessItem::WARNING, $this->itemsByKey()['runtime.canonical_and_legacy_urls_distinct']->status);
+    }
+
+    public function test_runtime_consolidation_docs_present(): void
+    {
+        $items = $this->itemsByKey();
+
+        $this->assertSame(PilotReadinessItem::READY, $items['runtime.runtime_consolidation_plan_doc']->status);
+        $this->assertSame(PilotReadinessItem::READY, $items['runtime.legacy_billing_inventory_doc']->status);
+        $this->assertSame(PilotReadinessItem::READY, $items['runtime.runtime_consolidation_runbook']->status);
+    }
+
+    public function test_29b_advisory_checks_never_block_pilot(): void
+    {
+        // Worst case: legacy URL undocumented + URLs collapsed → still warnings only.
+        config(['pilot.legacy_billing_url' => '', 'pilot.canonical_url' => 'http://40.160.61.180:18188']);
+
+        foreach ([
+            'runtime.legacy_billing_url_documented',
+            'runtime.canonical_and_legacy_urls_distinct',
+            'runtime.runtime_consolidation_plan_doc',
+            'runtime.legacy_billing_inventory_doc',
+            'runtime.runtime_consolidation_runbook',
+        ] as $key) {
+            $this->assertFalse($this->itemsByKey()[$key]->isBlocked());
+        }
+    }
+
     public function test_never_exposes_secret_values(): void
     {
         $secret = 'sk_live_PILOT_SECRET_MUST_NOT_LEAK';

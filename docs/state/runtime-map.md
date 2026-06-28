@@ -6,8 +6,8 @@
 > reconcile** — do not assume. Fuller detail:
 > [`docs/phase29/runtime-exposure-inventory.md`](../phase29/runtime-exposure-inventory.md).
 >
-> Last reviewed: Phase 29 (safeguard addendum). This file documents reality; it
-> changes no infrastructure.
+> Last reviewed: Phase 29B (runtime consolidation planning). This file documents
+> reality; it changes no infrastructure.
 
 ## Public URLs
 
@@ -48,7 +48,17 @@
 
 ## Known unresolved
 
-**Runtime consolidation is pending.** Two runtimes (`:18188` canonical, `:18180`
-legacy) coexist by design until a later approved phase decides on
-redirect/retire/decommission. Until then: pilot on `:18188`, reference only on
-`:18180`.
+**Runtime consolidation is pending (planned in Phase 29B).** Two runtimes
+(`:18188` canonical, `:18180` legacy) coexist by design. Phase 29B produced the
+controlled, staged **plan** — but executed none of it:
+
+- The **legacy billing runtime remains online** on `:18180` (project
+  `ghbilling`); it is **not** stopped, restricted, or redirected.
+- **Retirement/restriction is pending explicit approval**, a verified backup, a
+  dependency check, and confirmation that GlassPortal covers required workflows.
+- The **canonical pilot target remains `:18188`**; `:18180` remains
+  **legacy/reference** only.
+
+See the plan ([`../architecture/runtime-consolidation-plan.md`](../architecture/runtime-consolidation-plan.md)),
+the legacy inventory ([`legacy-billing-runtime-inventory.md`](./legacy-billing-runtime-inventory.md)),
+and the runbook ([`../runbooks/runtime-consolidation.md`](../runbooks/runtime-consolidation.md)).

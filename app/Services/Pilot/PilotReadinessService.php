@@ -197,6 +197,22 @@ class PilotReadinessService
                 "Canonical pilot URL is not the expected :{$port} ({$canonical}).",
                 "Set PILOT_CANONICAL_URL to http://40.160.61.180:{$port}.");
 
+        // (d) Phase 29B: the legacy billing URL must be documented (consolidation input).
+        $items[] = $legacy !== ''
+            ? PilotReadinessItem::ready('runtime.legacy_billing_url_documented', self::CAT_RUNTIME,
+                "Legacy billing URL is documented ({$legacy}).")
+            : PilotReadinessItem::warning('runtime.legacy_billing_url_documented', self::CAT_RUNTIME,
+                'Legacy billing URL is not documented.',
+                'Set PILOT_LEGACY_BILLING_URL and document it in docs/state/legacy-billing-runtime-inventory.md.');
+
+        // (e) Phase 29B: canonical and legacy URLs must be distinct (two runtimes).
+        $items[] = ($canonicalAuthority !== '' && $legacyAuthority !== '' && $canonicalAuthority !== $legacyAuthority)
+            ? PilotReadinessItem::ready('runtime.canonical_and_legacy_urls_distinct', self::CAT_RUNTIME,
+                'Canonical and legacy runtime URLs are distinct.')
+            : PilotReadinessItem::warning('runtime.canonical_and_legacy_urls_distinct', self::CAT_RUNTIME,
+                'Canonical and legacy runtime URLs are not distinct.',
+                'They must differ — check PILOT_CANONICAL_URL / PILOT_LEGACY_BILLING_URL.');
+
         return $items;
     }
 
@@ -442,9 +458,13 @@ class PilotReadinessService
     private function stateItems(): array
     {
         $docs = [
-            'state.repository_consolidation_doc' => ['docs/architecture/repository-consolidation.md', 'Repository consolidation ADR'],
-            'state.runtime_map_doc'              => ['docs/state/runtime-map.md', 'Runtime map'],
-            'state.repository_map_doc'           => ['docs/state/repository-map.md', 'Repository map'],
+            'state.repository_consolidation_doc'      => ['docs/architecture/repository-consolidation.md', 'Repository consolidation ADR'],
+            'state.runtime_map_doc'                   => ['docs/state/runtime-map.md', 'Runtime map'],
+            'state.repository_map_doc'                => ['docs/state/repository-map.md', 'Repository map'],
+            // Phase 29B — runtime consolidation planning docs.
+            'runtime.runtime_consolidation_plan_doc'  => ['docs/architecture/runtime-consolidation-plan.md', 'Runtime consolidation plan (ADR)'],
+            'runtime.legacy_billing_inventory_doc'    => ['docs/state/legacy-billing-runtime-inventory.md', 'Legacy billing runtime inventory'],
+            'runtime.runtime_consolidation_runbook'   => ['docs/runbooks/runtime-consolidation.md', 'Runtime consolidation runbook'],
         ];
 
         $items = [];

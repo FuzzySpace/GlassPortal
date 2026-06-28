@@ -851,6 +851,26 @@ class GlassPortalHealthCheck extends Command
             $this->warnCheck('architecture.glassbilling_boundary_doc', 'Could not check GlassBilling boundary doc: ' . $e->getMessage());
         }
 
+        // 9c. Runtime consolidation planning documentation (Phase 29B) — non-blocking.
+        // Advisory only: confirms the runtime-consolidation plan/inventory/runbook
+        // exist so the legacy-billing retirement stays evidence-led. Never fails the
+        // healthcheck and never prints secrets / never touches public URLs.
+        foreach ([
+            'architecture.runtime_consolidation_plan_doc'  => ['docs/architecture/runtime-consolidation-plan.md', 'Runtime consolidation plan (ADR)'],
+            'state.legacy_billing_runtime_inventory_doc'   => ['docs/state/legacy-billing-runtime-inventory.md', 'Legacy billing runtime inventory'],
+            'runbook.runtime_consolidation_doc'            => ['docs/runbooks/runtime-consolidation.md', 'Runtime consolidation runbook'],
+        ] as $check => [$path, $label]) {
+            try {
+                if (is_file(base_path($path))) {
+                    $this->pass($check, "{$label} present ({$path})");
+                } else {
+                    $this->warnCheck($check, "{$label} missing ({$path})");
+                }
+            } catch (\Throwable $e) {
+                $this->warnCheck($check, "Could not check {$label}: " . $e->getMessage());
+            }
+        }
+
         // 10. GlassBilling foundation (Phase 24)
 
         // 10a. Billing foundation tables

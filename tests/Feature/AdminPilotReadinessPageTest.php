@@ -58,6 +58,16 @@ class AdminPilotReadinessPageTest extends TestCase
             ->assertSeeText('Repository consolidation ADR present');
     }
 
+    public function test_page_shows_runtime_consolidation_checks(): void
+    {
+        $this->actingAs($this->user(UserRole::Admin->value))
+            ->get('/admin/pilot-readiness')
+            ->assertStatus(200)
+            // Phase 29B advisory checks render under the existing runtime/state categories.
+            ->assertSeeText('Canonical and legacy runtime URLs are distinct.')
+            ->assertSeeText('Runtime consolidation plan (ADR) present');
+    }
+
     public function test_page_warns_when_pilot_target_is_legacy_url(): void
     {
         config(['pilot.canonical_url' => config('pilot.legacy_billing_url')]);

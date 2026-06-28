@@ -320,4 +320,15 @@ class HealthCheckCommandTest extends TestCase
             ->doesntExpectOutputToContain($whsec)
             ->assertExitCode(0);
     }
+
+    // Phase 29B — runtime consolidation planning doc checks (advisory).
+
+    public function test_healthcheck_includes_runtime_consolidation_doc_checks(): void
+    {
+        $this->artisan('glassportal:healthcheck')
+            ->expectsOutputToContain('architecture.runtime_consolidation_plan_doc')
+            ->expectsOutputToContain('state.legacy_billing_runtime_inventory_doc')
+            ->expectsOutputToContain('runbook.runtime_consolidation_doc')
+            ->assertExitCode(0);
+    }
 }
