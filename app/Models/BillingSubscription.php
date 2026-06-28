@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\RedactsSensitiveArrays;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -15,7 +16,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  */
 class BillingSubscription extends Model
 {
-    use HasFactory, SoftDeletes;
+    use HasFactory, RedactsSensitiveArrays, SoftDeletes;
 
     /** Statuses considered "live" for access purposes. */
     public const LIVE_STATUSES = ['active', 'trialing'];
@@ -59,6 +60,11 @@ class BillingSubscription extends Model
     public function checkoutSessions(): HasMany
     {
         return $this->hasMany(BillingCheckoutSession::class);
+    }
+
+    public function changeRequests(): HasMany
+    {
+        return $this->hasMany(BillingChangeRequest::class);
     }
 
     public function scopeActive(Builder $query): Builder

@@ -2,7 +2,9 @@
 
 namespace App\Providers;
 
+use App\Services\Billing\BillingChangeRequestService;
 use App\Services\Billing\BillingEntitlementService;
+use App\Services\Billing\BillingSelfServiceService;
 use App\Services\Billing\StripeBillingClient;
 use App\Services\Billing\StripeCheckoutService;
 use App\Services\Billing\StripeWebhookService;
@@ -38,6 +40,13 @@ class AppServiceProvider extends ServiceProvider
                 $app->make(BillingEntitlementService::class),
                 $app->make(ProvisioningRequestService::class),
             ),
+        );
+
+        // Phase 28 — customer billing self-service.
+        $this->app->singleton(BillingSelfServiceService::class, fn () => new BillingSelfServiceService());
+        $this->app->singleton(
+            BillingChangeRequestService::class,
+            fn ($app) => new BillingChangeRequestService($app->make(BillingSelfServiceService::class)),
         );
     }
 

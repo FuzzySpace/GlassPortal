@@ -1118,6 +1118,76 @@ class GlassPortalHealthCheck extends Command
             $this->warnCheck('billing.stripe_webhook_config', 'Could not check webhook intake config: ' . $e->getMessage());
         }
 
+        // 14. Customer billing self-service (Phase 28)
+
+        // 14a. Change requests table
+        try {
+            if (Schema::hasTable('billing_change_requests')) {
+                $this->pass('billing.change_requests_table', 'billing_change_requests table present');
+            } else {
+                $this->checkFail('billing.change_requests_table', 'billing_change_requests table missing — run: php artisan migrate');
+                $allPassed = false;
+            }
+        } catch (\Throwable $e) {
+            $this->checkFail('billing.change_requests_table', 'Could not check change requests table: ' . $e->getMessage());
+            $allPassed = false;
+        }
+
+        // 14b. Change request model loadable
+        try {
+            if (class_exists(\App\Models\BillingChangeRequest::class)) {
+                $this->pass('billing.change_request_model', 'BillingChangeRequest model loadable');
+            } else {
+                $this->checkFail('billing.change_request_model', 'BillingChangeRequest model class not found');
+                $allPassed = false;
+            }
+        } catch (\Throwable $e) {
+            $this->warnCheck('billing.change_request_model', 'Could not check change request model: ' . $e->getMessage());
+        }
+
+        // 14c. Self-service controller + scope service resolvable
+        try {
+            app(\App\Http\Controllers\Portal\BillingController::class);
+            app(\App\Services\Billing\BillingSelfServiceService::class);
+            $this->pass('billing.self_service_controller', 'Portal billing controller + BillingSelfServiceService resolvable from container');
+        } catch (\Throwable $e) {
+            $this->checkFail('billing.self_service_controller', 'Self-service controller/service not resolvable: ' . $e->getMessage());
+            $allPassed = false;
+        }
+
+        // 14d. Change request workflow service resolvable
+        try {
+            app(\App\Services\Billing\BillingChangeRequestService::class);
+            $this->pass('billing.change_request_workflow', 'BillingChangeRequestService is resolvable from container');
+        } catch (\Throwable $e) {
+            $this->checkFail('billing.change_request_workflow', 'BillingChangeRequestService not resolvable: ' . $e->getMessage());
+            $allPassed = false;
+        }
+
+        // 14e. Self-service routes registered
+        try {
+            $routes   = app('router')->getRoutes();
+            $required = [
+                'portal.billing.dashboard',
+                'portal.billing.subscriptions',
+                'portal.billing.invoices',
+                'portal.billing.payments',
+                'portal.billing.checkout-sessions',
+                'portal.billing.change-requests',
+                'portal.billing.change-requests.store',
+                'admin.billing.change-requests',
+            ];
+            $missing = array_values(array_filter($required, fn ($name) => $routes->getByName($name) === null));
+            if (empty($missing)) {
+                $this->pass('billing.self_service_routes', count($required) . ' customer/admin billing self-service routes registered');
+            } else {
+                $this->checkFail('billing.self_service_routes', 'Missing billing self-service routes: ' . implode(', ', $missing) . ' — check routes/web.php');
+                $allPassed = false;
+            }
+        } catch (\Throwable $e) {
+            $this->warnCheck('billing.self_service_routes', 'Could not check self-service routes: ' . $e->getMessage());
+        }
+
         $this->line('');
 
         if ($allPassed) {

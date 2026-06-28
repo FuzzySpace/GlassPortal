@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\RedactsSensitiveArrays;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -14,7 +15,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  */
 class BillingInvoice extends Model
 {
-    use HasFactory, SoftDeletes;
+    use HasFactory, RedactsSensitiveArrays, SoftDeletes;
 
     protected $fillable = [
         'billing_customer_id',

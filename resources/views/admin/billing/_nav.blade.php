@@ -8,6 +8,7 @@
         'admin.billing.subscriptions'     => 'Subscriptions',
         'admin.billing.entitlements'      => 'Entitlements',
         'admin.billing.checkout-sessions' => 'Checkouts',
+        'admin.billing.change-requests'   => 'Requests',
         'admin.billing.events'            => 'Events',
     ] as $name => $label)
     <a href="{{ route($name) }}"
