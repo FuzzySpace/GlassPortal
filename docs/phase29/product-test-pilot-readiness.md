@@ -42,6 +42,16 @@ direct cancellation/upgrade/downgrade execution, refunds/credits, tax automation
 AI agents, telemetry/consent, social/SIONA campaign tools, and any repository
 restructuring (the Phase 28A consolidation decision is unchanged).
 
+## Runtime target
+
+Pilot against the **canonical GlassPortal runtime — `http://40.160.61.180:18188`**.
+The standalone billing runtime at `http://40.160.61.180:18180` is **legacy /
+reference** and must not be used for the pilot. The full public/runtime mapping,
+container inventory, and the "what must not change" list are in
+[`runtime-exposure-inventory.md`](./runtime-exposure-inventory.md). The readiness
+checks emit a **warning** (`runtime.canonical_target`) if you appear to be on the
+legacy URL.
+
 ## Test prerequisites
 
 - App boots; `APP_KEY` set; database migrated.

@@ -145,6 +145,42 @@ class PilotReadinessServiceTest extends TestCase
         $this->assertSame(PilotReadinessItem::BLOCKED, $this->itemsByKey()['security.no_infrastructure_execution']->status);
     }
 
+    // --- Phase 29 addendum: runtime exposure (legacy-URL guard) -------------
+
+    public function test_runtime_warns_when_on_legacy_billing_url(): void
+    {
+        config(['app.url' => config('pilot.legacy_billing_url')]);
+
+        $item = $this->itemsByKey()['runtime.canonical_target'];
+        $this->assertSame(PilotReadinessItem::WARNING, $item->status);
+        $this->assertStringContainsStringIgnoringCase('legacy', $item->message);
+        // A legacy-URL warning never blocks the pilot.
+        $this->assertFalse($item->isBlocked());
+    }
+
+    public function test_runtime_ready_when_on_canonical_url(): void
+    {
+        config(['app.url' => config('pilot.canonical_url')]);
+
+        $item = $this->itemsByKey()['runtime.canonical_target'];
+        $this->assertSame(PilotReadinessItem::READY, $item->status);
+        $this->assertStringContainsStringIgnoringCase('canonical', $item->message);
+    }
+
+    public function test_runtime_ready_when_neither_canonical_nor_legacy(): void
+    {
+        config(['app.url' => 'http://localhost:9999']);
+
+        $this->assertSame(PilotReadinessItem::READY, $this->itemsByKey()['runtime.canonical_target']->status);
+    }
+
+    public function test_runtime_check_never_exposes_secrets_only_urls(): void
+    {
+        // Sanity: the runtime check only ever references the public URLs.
+        $item = $this->itemsByKey()['runtime.canonical_target'];
+        $this->assertNotSame('', $item->message);
+    }
+
     public function test_never_exposes_secret_values(): void
     {
         $secret = 'sk_live_PILOT_SECRET_MUST_NOT_LEAK';

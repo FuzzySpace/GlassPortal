@@ -15,6 +15,12 @@ Companion doc: [`docs/phase29/product-test-pilot-readiness.md`](../phase29/produ
 
 ## A. Pre-test
 
+0. **Use the canonical pilot URL.** Test against **GlassPortal —
+   `http://40.160.61.180:18188`** (login at `/login`). Do **not** pilot against
+   the legacy billing runtime at `http://40.160.61.180:18180`; it is
+   reference-only. The readiness checks warn if you're on the legacy URL. See
+   [`runtime-exposure-inventory.md`](../phase29/runtime-exposure-inventory.md).
+
 1. **Confirm app health**
 
    ```bash

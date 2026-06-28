@@ -49,6 +49,18 @@ class AdminPilotReadinessPageTest extends TestCase
             ->assertSee(route('admin.billing.products'));
     }
 
+    public function test_page_warns_when_on_legacy_billing_url(): void
+    {
+        // Simulate the app being reached via the legacy billing runtime URL.
+        config(['app.url' => config('pilot.legacy_billing_url')]);
+
+        $this->actingAs($this->user(UserRole::Admin->value))
+            ->get('/admin/pilot-readiness')
+            ->assertStatus(200)
+            ->assertSeeText('Runtime exposure readiness')
+            ->assertSeeText('LEGACY billing runtime');
+    }
+
     public function test_page_never_renders_secret_values(): void
     {
         $secret = 'sk_live_PILOT_PAGE_SECRET_MUST_NOT_LEAK';

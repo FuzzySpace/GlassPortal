@@ -22,6 +22,7 @@ class PilotReadinessService
 {
     // Category labels (ordered).
     public const CAT_APPLICATION   = 'Application health';
+    public const CAT_RUNTIME        = 'Runtime exposure readiness';
     public const CAT_PRODUCT        = 'Product catalog readiness';
     public const CAT_BILLING        = 'Billing readiness';
     public const CAT_STRIPE         = 'Stripe readiness';
@@ -43,6 +44,7 @@ class PilotReadinessService
     {
         return array_merge(
             $this->applicationItems(),
+            $this->runtimeItems(),
             $this->productItems(),
             $this->billingItems(),
             $this->stripeItems(),
@@ -137,6 +139,38 @@ class PilotReadinessService
                 'APP_KEY is missing.', 'Run: php artisan key:generate');
 
         return $items;
+    }
+
+    /**
+     * Warn if the operator appears to be testing the LEGACY billing runtime
+     * instead of the canonical GlassPortal pilot target. Compares the current
+     * runtime authority (configured app URL + live request host) against the
+     * configured canonical / legacy URLs. Config-only; never redirects.
+     *
+     * @return list<PilotReadinessItem>
+     */
+    private function runtimeItems(): array
+    {
+        $canonical = rtrim((string) config('pilot.canonical_url', ''), '/');
+        $legacy    = rtrim((string) config('pilot.legacy_billing_url', ''), '/');
+
+        $candidates       = $this->currentRuntimeCandidates();
+        $legacyAuthority  = $this->authority($legacy);
+        $canonicalAuthority = $this->authority($canonical);
+
+        if ($legacyAuthority !== '' && in_array($legacyAuthority, $candidates, true)) {
+            return [PilotReadinessItem::warning('runtime.canonical_target', self::CAT_RUNTIME,
+                "You appear to be testing the LEGACY billing runtime ({$legacy}).",
+                "Use the canonical GlassPortal pilot target instead: {$canonical}.")];
+        }
+
+        if ($canonicalAuthority !== '' && in_array($canonicalAuthority, $candidates, true)) {
+            return [PilotReadinessItem::ready('runtime.canonical_target', self::CAT_RUNTIME,
+                "On the canonical GlassPortal pilot target ({$canonical}).")];
+        }
+
+        return [PilotReadinessItem::ready('runtime.canonical_target', self::CAT_RUNTIME,
+            "Current runtime is not the legacy billing URL. Canonical pilot target is {$canonical}.")];
     }
 
     /** @return list<PilotReadinessItem> */
@@ -340,6 +374,7 @@ class PilotReadinessService
             'docs/phase27/stripe-checkout-webhook-intake.md',
             'docs/phase28/customer-billing-self-service.md',
             'docs/architecture/repository-consolidation.md',
+            'docs/phase29/runtime-exposure-inventory.md',
         ];
         $missing = array_values(array_filter($phaseDocs, fn ($d) => ! is_file(base_path($d))));
         $items[] = empty($missing)
@@ -380,6 +415,56 @@ class PilotReadinessService
         $ref = (string) $ref;
 
         return $ref !== '' && ! str_starts_with($ref, 'price_local');
+    }
+
+    /**
+     * The host[:port] authorities that identify the runtime the operator is on:
+     * the configured app URL, plus the live request host when serving HTTP.
+     *
+     * @return list<string>
+     */
+    private function currentRuntimeCandidates(): array
+    {
+        $candidates = [];
+
+        $appAuthority = $this->authority((string) config('app.url', ''));
+        if ($appAuthority !== '') {
+            $candidates[] = $appAuthority;
+        }
+
+        try {
+            $reqHost = strtolower((string) request()->getHttpHost());
+            if ($reqHost !== '') {
+                $candidates[] = $reqHost;
+            }
+        } catch (\Throwable $e) {
+            // No bound request (e.g. some console contexts) — app URL is enough.
+        }
+
+        return array_values(array_unique($candidates));
+    }
+
+    /** Normalize a URL to a lowercase host[:port] authority. */
+    private function authority(string $url): string
+    {
+        $url = trim($url);
+        if ($url === '') {
+            return '';
+        }
+
+        $parts = parse_url($url);
+        if ($parts === false) {
+            return '';
+        }
+
+        $host = $parts['host'] ?? '';
+        if ($host === '') {
+            return strtolower($url); // bare host with no scheme
+        }
+
+        $port = isset($parts['port']) ? ':' . $parts['port'] : '';
+
+        return strtolower($host . $port);
     }
 
     private function stripe(): ?StripeBillingClient
