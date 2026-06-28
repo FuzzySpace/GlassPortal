@@ -827,6 +827,30 @@ class GlassPortalHealthCheck extends Command
             $this->warnCheck('billing.source_of_truth_adr', 'Could not check billing source-of-truth ADR: ' . $e->getMessage());
         }
 
+        // 9b. Repository consolidation documentation (Phase 28A) — non-blocking.
+        // Advisory only: verifies the canonical-repo ADR + GlassBilling boundary
+        // doc are present so maintainers find the decision. Never fails the
+        // healthcheck and never prints secrets.
+        try {
+            if (is_file(base_path('docs/architecture/repository-consolidation.md'))) {
+                $this->pass('architecture.repository_consolidation_doc', 'Repository consolidation ADR present (docs/architecture/repository-consolidation.md)');
+            } else {
+                $this->warnCheck('architecture.repository_consolidation_doc', 'Repository consolidation ADR missing (docs/architecture/repository-consolidation.md)');
+            }
+        } catch (\Throwable $e) {
+            $this->warnCheck('architecture.repository_consolidation_doc', 'Could not check repository consolidation ADR: ' . $e->getMessage());
+        }
+
+        try {
+            if (is_file(base_path('docs/architecture/module-boundaries.md'))) {
+                $this->pass('architecture.glassbilling_boundary_doc', 'GlassBilling module-boundary doc present (docs/architecture/module-boundaries.md)');
+            } else {
+                $this->warnCheck('architecture.glassbilling_boundary_doc', 'GlassBilling module-boundary doc missing (docs/architecture/module-boundaries.md)');
+            }
+        } catch (\Throwable $e) {
+            $this->warnCheck('architecture.glassbilling_boundary_doc', 'Could not check GlassBilling boundary doc: ' . $e->getMessage());
+        }
+
         // 10. GlassBilling foundation (Phase 24)
 
         // 10a. Billing foundation tables

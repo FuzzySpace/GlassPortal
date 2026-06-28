@@ -9,13 +9,40 @@ own business state. Each capability has an owner module (see
 
 - **GlassPortal** — identity/RBAC, module links, module launch + audit
   (`module_launch_events`), SIONA tenant provisioning, public catalog.
-- **GlassBilling** — billing/account/subscription **source of truth** (read-only
-  bridge today via `GlassBillingClient`; mapped by
-  `organizations.glassbilling_customer_id`).
+- **GlassBilling** — billing/account/subscription **domain of record**. Active
+  billing development (Phases 24–28) lives **inside GlassPortal** as a bounded
+  module (`app/Services/Billing/*`, `app/Models/Billing*`, `billing_*` tables); a
+  legacy read-only bridge to an external source also exists via
+  `GlassBillingClient` (mapped by `organizations.glassbilling_customer_id`). See
+  **Repository consolidation** below.
 - **GlassSite** — public product catalog (`/products`), published marketing data
   only (`public_product_catalog_entries`).
 - **SIONA** — external module; tenant provisioning + signed/back-channel launch.
   Per-module signing secret via `GLASSPORTAL_MODULE_SECRET_SIONA`.
+
+## Repository consolidation (Phase 28A)
+
+See [`docs/architecture/repository-consolidation.md`](docs/architecture/repository-consolidation.md)
+and [`docs/phase28a/`](docs/phase28a/). The canonical-repo decision:
+
+- **`FuzzySpace/GlassPortal` is the canonical, active application repository.**
+  All current development happens here.
+- **GlassBilling active development lives inside GlassPortal** as a bounded module
+  — not in a separate codebase.
+- **Do not move billing code to the standalone `FuzzySpace/GlassBilling` repo**
+  unless a future, explicit extraction phase is approved (its own ADR).
+- **Do not blindly import old standalone `FuzzySpace/GlassBilling` repo code.**
+  If it is reviewed later, treat it strictly as **legacy / reference** (source-
+  control import + security review first).
+- **Keep billing code namespaced and bounded** using the existing conventions:
+  `config/billing.php`, `app/Services/Billing/*`, `app/Models/Billing*`,
+  `billing_*` tables, `resources/views/admin/billing/*`,
+  `resources/views/portal/billing/*`, `docs/billing` or `docs/phase*`, and
+  billing-behavior tests.
+
+This is a repository-location decision only; it does not change billing behavior,
+the Stripe flow, the provisioning request engine, or customer billing
+self-service, and it leaves the standalone GlassBilling repo untouched.
 
 ## Dev & validation
 
