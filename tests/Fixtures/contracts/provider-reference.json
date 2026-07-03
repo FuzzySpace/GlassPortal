@@ -1,0 +1,14 @@
+{
+  "contract": "provider-reference",
+  "version": "v1",
+  "example": {
+    "provider": "glasspanel",
+    "external_id": "srv-000123",
+    "label": "Pro Hosting — customer example",
+    "recorded_by": 2,
+    "recorded_at": "2026-07-01T14:00:00+00:00"
+  },
+  "enums": {
+    "provider": ["glasspanel", "proxmox", "pterodactyl", "mailcow", "powerdns", "manual"]
+  }
+}

@@ -1,0 +1,24 @@
+{
+  "contract": "lifecycle-status",
+  "version": "v1",
+  "mapping": {
+    "portal_entitlement_to_standalone_customer_service": {
+      "pending": "pending",
+      "active": "active",
+      "suspended": "suspended",
+      "cancelled": "cancelled",
+      "terminated": "terminated",
+      "provisioning_pending": "provisioning",
+      "provisioning_failed": "failed",
+      "past_due": null,
+      "expired": null
+    },
+    "notes": "past_due and expired are billing-side states with no standalone CustomerService status equivalent; they map into the standalone BILLING_STATUSES domain instead."
+  },
+  "standalone_reference": {
+    "customer_service_statuses": ["pending", "provisioning", "active", "suspended", "cancelled", "terminated", "failed"],
+    "billing_statuses": ["draft", "pending_invoice", "invoiced", "paid", "comped", "failed"],
+    "provisioning_request_statuses": ["draft", "pending_approval", "approved", "queued", "running", "completed", "failed", "cancelled"]
+  }
+}
+
