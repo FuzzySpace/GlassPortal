@@ -13,6 +13,9 @@ use App\Models\BillingServiceEntitlement;
 use App\Models\BillingSubscription;
 use App\Models\ProvisioningRequest;
 use App\Services\Provisioning\ProvisioningRequestService;
+use App\Events\Billing\CheckoutCompleted;
+use App\Events\Billing\InvoicePaid;
+use App\Events\Billing\SubscriptionActivated;
 use Illuminate\Support\Carbon;
 
 /**
@@ -156,6 +159,8 @@ class StripeWebhookService
 
         // Do NOT activate entitlements / create provisioning here — wait for the
         // subscription.* / invoice.* events that confirm active/paid state.
+
+        CheckoutCompleted::dispatch($local->fresh());
         return $warnings;
     }
 
@@ -274,6 +279,8 @@ class StripeWebhookService
             'currency'          => strtoupper((string) ($object['currency'] ?? $invoice->currency ?? 'USD')),
             'paid_at'           => now(),
         ])->save();
+
+        InvoicePaid::dispatch($invoice->fresh());
 
         if (! empty($object['payment_intent'])) {
             $payment = BillingPayment::firstOrNew(['stripe_payment_intent_id' => $object['payment_intent']]);
@@ -398,6 +405,7 @@ class StripeWebhookService
 
         if (in_array($stripeStatus, ['active', 'trialing'], true)) {
             $this->ensureEntitlementActiveAndProvisioning($entitlement->fresh());
+            SubscriptionActivated::dispatch($subscription);
         } elseif (in_array($stripeStatus, ['past_due', 'unpaid'], true)) {
             $this->entitlements->markPastDue($entitlement->fresh(), "subscription {$stripeStatus}");
         } elseif (in_array($stripeStatus, ['canceled', 'incomplete_expired'], true)) {

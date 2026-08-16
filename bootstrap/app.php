@@ -21,4 +21,20 @@ return Application::configure(basePath: dirname(__DIR__))
     })
     ->withExceptions(function (Exceptions $exceptions) {
         //
+        // Phase 29D+: Exception monitoring — Sentry integration when configured.
+        if (class_exists(\Sentry\Laravel\Integration::class)) {
+            $exceptions->reportable(function (\Throwable $e) {
+                \Sentry\Laravel\Integration::captureUnhandledException($e);
+            });
+        }
+
+        // Dedicated billing exception logging for production debugging.
+        $exceptions->reportable(function (\Throwable $e) {
+            if (str_contains(get_class($e), 'Billing') || str_contains(get_class($e), 'Stripe')) {
+                \Illuminate\Support\Facades\Log::channel('billing')->error(
+                    '[BillingException] ' . $e->getMessage(),
+                    ['exception' => get_class($e), 'file' => $e->getFile(), 'line' => $e->getLine()]
+                );
+            }
+        })->stop();
     })->create();

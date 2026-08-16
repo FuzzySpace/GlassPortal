@@ -41,7 +41,7 @@
 
 @section('content')
 <div class="hero">
-    <div class="hero-badge">Phase 3 — Auth &amp; Module Shell</div>
+    <div class="hero-badge">Commercial V1 — Pilot</div>
     <h1>Glass<span>Portal</span></h1>
     <p>
         Unified customer and staff portal for the Glasshouse ecosystem.<br>

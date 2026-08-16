@@ -127,6 +127,15 @@ return [
             'path' => storage_path('logs/laravel.log'),
         ],
 
+        // Phase 29D+: dedicated billing channel for billing-critical exceptions.
+        'billing' => [
+            'driver' => 'daily',
+            'path' => storage_path('logs/billing.log'),
+            'level' => 'error',
+            'days' => 30,
+            'replace_placeholders' => true,
+        ],
+
     ],
 
 ];

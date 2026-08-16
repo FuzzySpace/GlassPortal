@@ -92,7 +92,7 @@
                 <a href="{{ route('portal.billing.dashboard') }}" class="{{ str_starts_with($route, 'portal.billing') ? 'active' : '' }}">Billing</a>
                 <a href="{{ route('portal.modules') }}"   class="{{ $route === 'portal.modules'   ? 'active' : '' }}">Modules</a>
                 <a href="{{ route('portal.support') }}"   class="{{ $route === 'portal.support'   ? 'active' : '' }}">Support</a>
-                <a href="#">Account</a>
+                <a href="{{ route('portal.billing.dashboard') }}">Account</a>
             </nav>
             <div class="header-user">
                 <span>{{ auth()->user()->name }}</span>

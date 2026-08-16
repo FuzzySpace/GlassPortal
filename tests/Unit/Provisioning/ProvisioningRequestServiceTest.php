@@ -224,6 +224,10 @@ class ProvisioningRequestServiceTest extends TestCase
         // No driver class/handler is referenced by the service.
         $source = file_get_contents(app_path('Services/Provisioning/ProvisioningRequestService.php'));
         $this->assertStringNotContainsString('->execute(', $source);
-        $this->assertStringNotContainsString('dispatch(', $source);
+        // Event dispatches (ProvisioningStatusChanged) are allowed — they notify, never execute.
+        // Guard against job/queue dispatches that could trigger infrastructure.
+        $this->assertStringNotContainsString('->execute(', $source);
+        $this->assertStringNotContainsString('Bus::dispatch', $source);
+        $this->assertStringNotContainsString('ProcessProvisioning', $source);
     }
 }

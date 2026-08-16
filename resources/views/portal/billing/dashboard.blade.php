@@ -7,6 +7,7 @@
 
 <div class="page-header">
     <h2>Billing Overview</h2>
+    <form method="POST" action="{{ route('portal.billing.manage') }}" style="display:inline;margin-left:1rem">@csrf<button type="submit" class="badge badge-active" style="border:none;cursor:pointer;text-decoration:none">Manage Payment Method →</button></form>
     <p>View your subscriptions, invoices, payments and service requests. To make a change, submit a billing request — our team reviews every request.</p>
 </div>
 
