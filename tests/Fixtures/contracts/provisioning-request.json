@@ -1,0 +1,31 @@
+{
+  "contract": "provisioning-request",
+  "version": "v1",
+  "example": {
+    "id": 1,
+    "request_key": "prq_example_v1",
+    "billing_service_entitlement_id": 1,
+    "billing_customer_id": 1,
+    "organization_id": 10,
+    "user_id": 5,
+    "module_key": "glasspanel",
+    "product_key": "hosting-pro",
+    "service_type": "hosting",
+    "requested_action": "provision",
+    "status": "pending_approval",
+    "requires_approval": true,
+    "approved_by": null,
+    "idempotency_key": "sub_ExampleV1:provision",
+    "payload": {},
+    "reason": null
+  },
+  "enums": {
+    "status": [
+      "draft", "pending_approval", "approved", "rejected", "queued",
+      "running", "completed", "failed", "cancelled"
+    ],
+    "terminal_statuses": ["completed", "rejected", "cancelled"]
+    ,
+    "actions": ["provision", "suspend", "reactivate", "cancel", "terminate", "update", "migrate"]
+  }
+}

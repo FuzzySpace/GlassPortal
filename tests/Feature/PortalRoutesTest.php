@@ -48,7 +48,8 @@ class PortalRoutesTest extends TestCase
         $response = $this->actingAs($user)->get('/portal');
 
         $response->assertStatus(200);
-        $response->assertSeeText('No account linkage found');
+        // New customers with no local billing record see the onboarding flow.
+        $response->assertSeeText('Welcome to');
     }
 
     public function test_portal_dashboard_shows_services_when_linked(): void
@@ -69,6 +70,8 @@ class PortalRoutesTest extends TestCase
 
         $org  = Organization::factory()->withGlassBillingId('gb_cust_portal')->create();
         $user = $this->customerUser($org);
+        // Create a local billing customer so the onboarding check passes.
+        \App\Models\BillingCustomer::factory()->create(['organization_id' => $org->id, 'user_id' => $user->id]);
 
         $response = $this->actingAs($user)->get('/portal');
 
@@ -164,6 +167,7 @@ class PortalRoutesTest extends TestCase
 
         $org  = Organization::factory()->withGlassBillingId('gb_cust_down')->create();
         $user = $this->customerUser($org);
+        \App\Models\BillingCustomer::factory()->create(['organization_id' => $org->id, 'user_id' => $user->id]);
 
         $response = $this->actingAs($user)->get('/portal');
 

@@ -9,6 +9,7 @@ use App\Models\User;
 use App\Services\Billing\BillingEntitlementService;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Str;
+use App\Events\Billing\ProvisioningStatusChanged;
 
 /**
  * Provisioning request engine (Phase 26).
@@ -194,6 +195,8 @@ class ProvisioningRequestService
         $request->forceFill(array_merge(['status' => $newStatus], $extraAttributes))->save();
 
         $this->recordEvent($request, $eventType, $previous, $newStatus, $reason, $actor);
+
+        ProvisioningStatusChanged::dispatch($request, $previous, $newStatus);
 
         return ProvisioningRequestResult::transitioned($request, $previous, $newStatus, $reason);
     }

@@ -1,0 +1,30 @@
+{
+  "contract": "invoice-payment",
+  "version": "v1",
+  "example": {
+    "invoice": {
+      "id": 1,
+      "billing_customer_id": 1,
+      "stripe_invoice_id": "in_ExampleV1",
+      "status": "paid",
+      "amount_due_cents": 4900,
+      "amount_paid_cents": 4900,
+      "currency": "usd",
+      "paid_at": "2026-07-01T12:06:00+00:00"
+    },
+    "payment": {
+      "id": 1,
+      "billing_customer_id": 1,
+      "billing_invoice_id": 1,
+      "stripe_payment_intent_id": "pi_ExampleV1",
+      "status": "succeeded",
+      "amount_cents": 4900,
+      "currency": "usd",
+      "paid_at": "2026-07-01T12:06:00+00:00"
+    }
+  },
+  "enums": {
+    "invoice.status": ["draft", "open", "paid", "void", "uncollectible"],
+    "payment.status": ["succeeded", "processing", "requires_action", "failed"]
+  }
+}

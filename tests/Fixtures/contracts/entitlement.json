@@ -1,0 +1,28 @@
+{
+  "contract": "entitlement",
+  "version": "v1",
+  "example": {
+    "id": 1,
+    "billing_customer_id": 1,
+    "billing_subscription_id": 1,
+    "billing_product_id": 1,
+    "billing_plan_id": 1,
+    "organization_id": 10,
+    "user_id": 5,
+    "entitlement_key": "ent_example_v1",
+    "service_type": "hosting",
+    "module_key": "glasspanel",
+    "product_key": "hosting-pro",
+    "name": "Pro Hosting Service",
+    "status": "active",
+    "quantity": 1,
+    "current_period_end": "2026-08-01T12:05:00+00:00"
+  },
+  "enums": {
+    "status": [
+      "pending", "active", "past_due", "suspended", "cancelled",
+      "terminated", "expired", "provisioning_pending", "provisioning_failed"
+    ],
+    "terminal_statuses": ["cancelled", "terminated", "expired"]
+  }
+}

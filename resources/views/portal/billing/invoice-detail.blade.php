@@ -26,6 +26,7 @@
         <tr><td class="text-dim text-sm" style="padding:.3rem 0">Paid</td><td class="text-sm">{{ $invoice->paid_at?->format('Y-m-d') ?? '—' }}</td></tr>
     </table>
 
+    <div style="margin-top:1rem"><a href="{{ route('portal.billing.invoices.download', $invoice) }}" class="badge badge-active" style="text-decoration:none">Download PDF ↓</a></div>
     @if($hostedUrl)
         <div style="margin-top:1rem"><a href="{{ $hostedUrl }}" target="_blank" rel="noopener" class="badge badge-active" style="text-decoration:none">View / pay on Stripe →</a></div>
     @endif

@@ -1,0 +1,24 @@
+{
+  "contract": "checkout-session",
+  "version": "v1",
+  "example": {
+    "id": 1,
+    "billing_customer_id": 1,
+    "billing_plan_id": 1,
+    "organization_id": 10,
+    "user_id": 5,
+    "provider": "stripe",
+    "provider_session_id": "cs_test_ExampleV1",
+    "provider_customer_id": "cus_ExampleV1",
+    "provider_subscription_id": "sub_ExampleV1",
+    "mode": "subscription",
+    "status": "complete",
+    "payment_status": "paid",
+    "currency": "usd",
+    "amount_total": 4900,
+    "completed_at": "2026-07-01T12:05:00+00:00"
+  },
+  "enums": {
+    "status": ["open", "complete", "expired"]
+  }
+}

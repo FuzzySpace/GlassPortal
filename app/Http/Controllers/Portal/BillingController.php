@@ -9,8 +9,11 @@ use App\Models\BillingPlan;
 use App\Models\BillingSubscription;
 use App\Services\Billing\BillingSelfServiceService;
 use App\Services\Billing\StripeCheckoutService;
+use App\Services\Billing\InvoicePdfService;
+use App\Services\Billing\StripePortalService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 use Illuminate\View\View;
 
 /**
@@ -26,6 +29,8 @@ class BillingController extends Controller
     public function __construct(
         private StripeCheckoutService $checkout,
         private BillingSelfServiceService $self,
+        private InvoicePdfService $pdf,
+        private StripePortalService $portal,
     ) {}
 
     // -------------------------------------------------------------------------
@@ -142,5 +147,45 @@ class BillingController extends Controller
         }
 
         return redirect()->route('portal.billing.plans')->with('error', $result->message);
+    }
+
+    // -------------------------------------------------------------------------
+    // Invoice PDF download (Phase 29D+)
+
+    public function invoiceDownload(Request $request, BillingInvoice $invoice): Response
+    {
+        abort_unless($this->self->ownsInvoice($request->user(), $invoice), 404);
+
+        $invoice->load(['customer', 'payments']);
+
+        $content  = $this->pdf->generatePdf($invoice);
+        $filename = $this->pdf->filename($invoice);
+
+        $contentType = class_exists(\Barryvdh\DomPDF\Facade\Pdf::class)
+            ? 'application/pdf'
+            : 'text/html';
+
+        return response($content, 200, [
+            'Content-Type'        => $contentType,
+            'Content-Disposition' => "attachment; filename=\"{$filename}\"",
+        ]);
+    }
+
+    // -------------------------------------------------------------------------
+    // Stripe Customer Portal (Phase 29D+)
+
+    public function stripePortal(Request $request): RedirectResponse
+    {
+        $result = $this->portal->createSession(
+            $request->user(),
+            url('/portal/billing'),
+        );
+
+        if ($result['ok'] && $result['url']) {
+            return redirect()->away($result['url']);
+        }
+
+        return redirect()->route('portal.billing.dashboard')
+            ->with('error', $result['error'] ?? 'Could not open billing management.');
     }
 }

@@ -74,8 +74,19 @@ return [
             'invoice.paid',
             'invoice.payment_succeeded',
             'invoice.payment_failed',
-            'payment_method.attached',
+        'payment_method.attached',
         ],
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Billing Notifications (Phase 29D+)
+    |--------------------------------------------------------------------------
+    | Controls whether billing lifecycle events dispatch email notifications.
+    | Disable to suppress all billing emails (e.g. during migration/testing).
+    */
+    'notifications' => [
+        'enabled' => filter_var(env('GLASSBILLING_NOTIFICATIONS_ENABLED', true), FILTER_VALIDATE_BOOLEAN),
     ],
 
 ];

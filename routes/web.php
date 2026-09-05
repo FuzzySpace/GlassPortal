@@ -216,6 +216,7 @@ Route::middleware(['auth', 'role:customer'])
 
                 Route::get('/invoices',                            [PortalBillingController::class, 'invoices'])->name('invoices');
                 Route::get('/invoices/{invoice}',                  [PortalBillingController::class, 'invoiceShow'])->name('invoices.show');
+                Route::get("/invoices/{invoice}/download",         [PortalBillingController::class, "invoiceDownload"])->name("invoices.download");
 
                 Route::get('/payments',                            [PortalBillingController::class, 'payments'])->name('payments');
 
@@ -225,6 +226,8 @@ Route::middleware(['auth', 'role:customer'])
                 // Phase 27: plans + checkout start (redirects to Stripe Checkout).
                 Route::get('/plans',                               [PortalBillingController::class, 'plans'])->name('plans');
                 Route::post('/checkout/plans/{plan}',              [PortalBillingController::class, 'checkout'])->name('checkout');
+                // Phase 29D+: Stripe Customer Portal — manage payment methods / cancel.
+                Route::post("/manage",                             [PortalBillingController::class, "stripePortal"])->name("manage");
 
                 // Billing change requests — workflow records only. Register the
                 // static /create before the {changeRequest} wildcard.

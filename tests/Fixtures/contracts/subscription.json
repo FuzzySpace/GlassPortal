@@ -1,0 +1,18 @@
+{
+  "contract": "subscription",
+  "version": "v1",
+  "example": {
+    "id": 1,
+    "billing_customer_id": 1,
+    "billing_plan_id": 1,
+    "stripe_subscription_id": "sub_ExampleV1",
+    "status": "active",
+    "current_period_start": "2026-07-01T12:05:00+00:00",
+    "current_period_end": "2026-08-01T12:05:00+00:00",
+    "cancel_at_period_end": false
+  },
+  "enums": {
+    "status": ["active", "trialing", "past_due", "canceled", "incomplete", "incomplete_expired", "unpaid", "paused"],
+    "live_statuses": ["active", "trialing"]
+  }
+}

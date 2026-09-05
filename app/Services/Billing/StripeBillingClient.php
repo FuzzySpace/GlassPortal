@@ -222,4 +222,32 @@ class StripeBillingClient
     {
         return (string) config('billing.stripe.secret_key', '');
     }
+
+    /**
+     * Generic authenticated POST to the Stripe API. Used by StripePortalService.
+     *
+     * @return array<string, mixed>
+     */
+    public function post(string $endpoint, array $params): array
+    {
+        if (! $this->isConfigured()) {
+            return ['ok' => false, 'error' => 'not_configured'];
+        }
+
+        $base = rtrim((string) config('billing.stripe.api_base', 'https://api.stripe.com'), '/');
+
+        try {
+            $response = Http::asForm()
+                ->withToken($this->secretKey())
+                ->post($base . $endpoint, $params);
+
+            if ($response->successful()) {
+                return array_merge(['ok' => true], (array) $response->json());
+            }
+
+            return ['ok' => false, 'error' => 'stripe_error', 'http_status' => $response->status()];
+        } catch (\Throwable) {
+            return ['ok' => false, 'error' => 'exception'];
+        }
+    }
 }

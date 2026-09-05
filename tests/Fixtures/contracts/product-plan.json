@@ -1,0 +1,27 @@
+{
+  "contract": "product-plan",
+  "version": "v1",
+  "example": {
+    "product": {
+      "id": 1,
+      "name": "Glasshouse Hosting",
+      "description": "Managed hosting service",
+      "status": "active"
+    },
+    "plan": {
+      "id": 1,
+      "billing_product_id": 1,
+      "plan_key": "hosting-pro-monthly",
+      "stripe_price_id": "price_ExampleV1",
+      "name": "Pro Monthly",
+      "amount_cents": 4900,
+      "currency": "usd",
+      "interval": "month",
+      "status": "active"
+    }
+  },
+  "enums": {
+    "plan.interval": ["month", "year"],
+    "plan.status": ["active", "inactive", "archived"]
+  }
+}
