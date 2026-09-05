@@ -8,6 +8,7 @@ use App\Services\Billing\BillingSelfServiceService;
 use App\Services\Billing\StripeBillingClient;
 use App\Services\Billing\StripeCheckoutService;
 use App\Services\Billing\StripeWebhookService;
+use App\Services\Pilot\PilotReadinessService;
 use App\Services\Provisioning\ProvisioningRequestService;
 use App\Services\Siona\SionaConnectorClient;
 use App\Services\Siona\SionaTenantProvisioningService;
@@ -48,6 +49,9 @@ class AppServiceProvider extends ServiceProvider
             BillingChangeRequestService::class,
             fn ($app) => new BillingChangeRequestService($app->make(BillingSelfServiceService::class)),
         );
+
+        // Phase 29 — pilot/product-test readiness.
+        $this->app->singleton(PilotReadinessService::class, fn () => new PilotReadinessService());
     }
 
     public function boot(): void

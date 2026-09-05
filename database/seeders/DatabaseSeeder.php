@@ -19,5 +19,9 @@ class DatabaseSeeder extends Seeder
             'name' => 'Test User',
             'email' => 'test@example.com',
         ]);
+
+        // Phase 29 — minimal active product/plan so a fresh local/dev environment
+        // is pilot-test ready (idempotent; no fake subscriptions/payments).
+        $this->call(PilotSeeder::class);
     }
 }

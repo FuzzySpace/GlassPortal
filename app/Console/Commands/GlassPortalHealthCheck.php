@@ -1212,6 +1212,69 @@ class GlassPortalHealthCheck extends Command
             $this->warnCheck('billing.self_service_routes', 'Could not check self-service routes: ' . $e->getMessage());
         }
 
+        // 15. Pilot / product-test readiness machinery (Phase 29)
+        // These verify the readiness TOOLING is wired up — not whether a product
+        // is seeded (that is the `glassportal:pilot-readiness` command's job).
+        // Data readiness is surfaced as an informational summary, never a failure.
+
+        // 15a. Readiness service resolvable (+ informational summary)
+        try {
+            $readiness = app(\App\Services\Pilot\PilotReadinessService::class);
+            $sum       = $readiness->summary();
+            $this->pass('pilot.readiness_service', "PilotReadinessService resolvable ({$sum['ready']} ready / {$sum['warning']} warning / {$sum['blocked']} blocked — run glassportal:pilot-readiness for detail)");
+        } catch (\Throwable $e) {
+            $this->checkFail('pilot.readiness_service', 'PilotReadinessService not resolvable: ' . $e->getMessage());
+            $allPassed = false;
+        }
+
+        // 15b. Readiness command registered
+        try {
+            $commands = array_keys(\Illuminate\Support\Facades\Artisan::all());
+            if (in_array('glassportal:pilot-readiness', $commands, true)) {
+                $this->pass('pilot.readiness_command', 'glassportal:pilot-readiness command is registered');
+            } else {
+                $this->checkFail('pilot.readiness_command', 'glassportal:pilot-readiness command not registered');
+                $allPassed = false;
+            }
+        } catch (\Throwable $e) {
+            $this->warnCheck('pilot.readiness_command', 'Could not check pilot readiness command: ' . $e->getMessage());
+        }
+
+        // 15c. Admin readiness route registered
+        try {
+            if (app('router')->getRoutes()->getByName('admin.pilot-readiness') !== null) {
+                $this->pass('pilot.admin_route', 'admin.pilot-readiness route registered at /admin/pilot-readiness');
+            } else {
+                $this->checkFail('pilot.admin_route', 'admin.pilot-readiness route not found — check routes/web.php');
+                $allPassed = false;
+            }
+        } catch (\Throwable $e) {
+            $this->warnCheck('pilot.admin_route', 'Could not check pilot readiness route: ' . $e->getMessage());
+        }
+
+        // 15d. Pilot readiness doc present (advisory)
+        try {
+            if (is_file(base_path('docs/phase29/product-test-pilot-readiness.md'))) {
+                $this->pass('pilot.readiness_doc', 'Pilot readiness doc present (docs/phase29/product-test-pilot-readiness.md)');
+            } else {
+                $this->warnCheck('pilot.readiness_doc', 'Pilot readiness doc missing (docs/phase29/product-test-pilot-readiness.md)');
+            }
+        } catch (\Throwable $e) {
+            $this->warnCheck('pilot.readiness_doc', 'Could not check pilot readiness doc: ' . $e->getMessage());
+        }
+
+        // 15e. No automatic infrastructure execution (pilot safety invariant)
+        try {
+            if ((bool) config('provisioning.auto_execute', false)) {
+                $this->checkFail('pilot.no_infrastructure_execution', 'provisioning.auto_execute is enabled — pilots must be approval-gated; set PROVISIONING_AUTO_EXECUTE=false');
+                $allPassed = false;
+            } else {
+                $this->pass('pilot.no_infrastructure_execution', 'Provisioning is approval-gated; no driver auto-execution configured');
+            }
+        } catch (\Throwable $e) {
+            $this->warnCheck('pilot.no_infrastructure_execution', 'Could not check infrastructure-execution invariant: ' . $e->getMessage());
+        }
+
         $this->line('');
 
         if ($allPassed) {
